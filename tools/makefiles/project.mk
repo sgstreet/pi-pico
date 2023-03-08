@@ -11,13 +11,15 @@
 #     Author: Stephen Street (stephen@redrocketcomputing.com)
 #
 
-SUBDIRS ?= $(subst ${SOURCE_DIR}/,,$(shell find ${SOURCE_DIR} -mindepth 2 -name "subdir.mk" -printf "%h "))
-SRC :=
-
 include ${PROJECT_ROOT}/tools/makefiles/common.mk
 
-include $(patsubst %,${SOURCE_DIR}/%/subdir.mk,${SUBDIRS})
--include ${SOURCE_DIR}/subdir.mk
+ifneq ($(wildcard ${SOURCE_DIR}/subdir.mk),)
+include ${SOURCE_DIR}/subdir.mk
+else
+SRC += $(wildcard ${SOURCE_DIR}/*.c)
+SRC += $(wildcard ${SOURCE_DIR}/*.S)
+SRC += $(wildcard ${SOURCE_DIR}/*.s)
+endif
 
 OBJ := $(patsubst %.c,%.o,$(filter %.c,${SRC})) $(patsubst %.cpp,%.o,$(filter %.cpp,${SRC})) $(patsubst %.s,%.o,$(filter %.s,${SRC})) $(patsubst %.S,%.o,$(filter %.S,${SRC}))
 OBJ := $(subst ${PROJECT_ROOT},${BUILD_ROOT},${OBJ})
@@ -37,31 +39,21 @@ TARGET_OBJ := $(foreach dir, $(addprefix ${BUILD_ROOT}/, ${TARGET_OBJ_LIBS}), $(
 
 .SECONDARY:
 
-ifeq (${TARGET},)
-all: ${SUBDIRS} ${EXTRA_TARGETS} ${OBJ}
-else
-$(addprefix ${CURDIR}/,${TARGET}): ${SUBDIRS} ${EXTRA_TARGETS} 
-all: $(addprefix ${CURDIR}/,${TARGET}) 
-endif
+all: ${EXTRA_TARGETS} ${OBJ}
 
-clean: ${SUBDIRS}
+clean:
 	@echo "CLEANING ${CURDIR}"
-	${RM} ${TARGET} $(basename ${TARGET}).img $(basename ${TARGET}).bin $(basename ${TARGET}).elf $(basename ${TARGET}).map $(basename ${TARGET}).smap $(basename ${TARGET}).dis ${OBJ} ${OBJ:%.o=%.d} ${OBJ:%.o=%.dis} ${OBJ:%.o=%.o.lst} ${EXTRA_CLEAN}
+	${RM} ${CURDIR}/*.bin ${CURDIR}/*.elf ${CURDIR}/*.map ${CURDIR}/*.smap ${CURDIR}/*.dis ${OBJ} ${OBJ:%.o=%.d} ${OBJ:%.o=%.dis} ${OBJ:%.o=%.o.lst} ${EXTRA_CLEAN}
 
-${SUBDIRS}:
-	mkdir -p ${CURDIR}/$@
+distclean:
+
+install:
+
+${EXTRA_DEPS} ${EXTRA_LIB_DEPS} ${EXTRA_ELF_DEPS} ${TARGET_OBJ}:
 
 ${CURDIR}/%.a: ${OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
 	@echo "ARCHIVING $@"
 	$(AR) ${ARFLAGS} $@ ${OBJ}
-
-#$(addprefix ${CURDIR}/,${TARGET}): ${OBJ} ${TARGET_OBJ} ${EXTRA_DEPS}
-#	@echo "LINKING EXE $@"
-#	$(LD) ${LDFLAGS} ${LOADLIBES} -o $@ ${OBJ} ${TARGET_OBJ} ${LDLIBS}
-#	$(OBJDUMP) -S $@ > $@.dis
-#	$(NM) -n $@ | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)' > $@.smap
-#	@echo "SIZE $@"
-#	$(SIZE) -B $@
 
 ${CURDIR}/%.so: ${OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
 	@echo "LINKING $@"
@@ -71,28 +63,29 @@ ${CURDIR}/%.so: ${OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
 ${CURDIR}/%.elf: ${OBJ} ${TARGET_OBJ} ${EXTRA_ELF_DEPS} ${EXTRA_DEPS}
 	@echo "LINKING $@"
 	$(LD) ${LDFLAGS} -Wl,--cref -Wl,-Map,"$(basename ${@}).map" ${LOADLIBES} -o $@ ${OBJ} ${TARGET_OBJ} ${LDLIBS}
-#	$(OBJDUMP) -S $@ > ${@:%.elf=%.dis}
+	$(OBJDUMP) -S $@ > ${@:%.elf=%.dis}
 	$(NM) -n $@ | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)' > ${@:%.elf=%.smap}
 	@echo "SIZE $@"
 	$(SIZE) -B $@
 
 ${CURDIR}/%.bin: ${CURDIR}/%.elf
 	@echo "GENERATING $@"
-	$(OBJCOPY) --gap=0xff -O binary $< $@
+#	$(OBJCOPY) --gap=0xff -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
-${CURDIR}/%.o: ${SOURCE_DIR}/%.c
+${CURDIR}/%.o: ${SOURCE_DIR}/%.c ${EXTRA_OBJ_DEPS}
 	@echo "COMPILING $<"
 	$(CC) ${CPPFLAGS} ${CFLAGS} -Wa,-adhlns="$@.lst" -MMD -MP -c -o $@ $<
-    
-${CURDIR}/%.o: ${SOURCE_DIR}/%.cpp
+
+${CURDIR}/%.o: ${SOURCE_DIR}/%.cpp ${EXTRA_OBJ_DEPS}
 	@echo "COMPILING $<"
 	$(CXX) ${CPPFLAGS} ${CXXFLAGS} -Wa,-adhlns="$@.lst" -MMD -MP -c -o $@ $<
 
-${CURDIR}/%.o: ${SOURCE_DIR}/%.s
+${CURDIR}/%.o: ${SOURCE_DIR}/%.s ${EXTRA_OBJ_DEPS}
 	@echo "ASSEMBLING $<"
 	$(AS) ${ASFLAGS} -adhlns="$@.lst" -o $@ $<
 
-${CURDIR}/%.o: ${SOURCE_DIR}/%.S
+${CURDIR}/%.o: ${SOURCE_DIR}/%.S ${EXTRA_OBJ_DEPS}
 	@echo "ASSEMBLING $<"
 	$(CC) ${CPPFLAGS} -x assembler-with-cpp ${ASFLAGS} -Wa,-adhlns="$@.lst" -c -o $@ $<
 

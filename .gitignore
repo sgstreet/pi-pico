@@ -34,3 +34,5 @@ build/
 rootfs/
 tmp/
 eclipse/
+local/
+images/

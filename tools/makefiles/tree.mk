@@ -15,6 +15,13 @@ where-am-i := ${CURDIR}/$(lastword $(subst $(lastword ${MAKEFILE_LIST}),,${MAKEF
 
 SUBDIRS ?= $(subst ${CURDIR}/,,$(shell find ${CURDIR} -mindepth 2 -maxdepth 2 -name "*.mk" -and -not -name "subdir.mk" -printf "%h "))
 
+${SUBDIRS}:
+	@echo "ENTERING $@"
+	+${MAKE} --no-print-directory -C $@ -f $@.mk ${MAKECMDGOALS}
+.PHONY: ${SUBDIRS}
+
+target:
+
 all: target
 	
 clean: target
@@ -23,7 +30,3 @@ install: target
 
 #$(info SUBDIR=${SUBDIRS})
 
-${SUBDIRS}:
-	@echo "ENTERING $@"
-	${MAKE} --no-print-directory -C $@ -f $@.mk ${MAKECMDGOALS}
-.PHONY: ${SUBDIRS}

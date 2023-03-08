@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+
+if [[ -z "$PROJECT_ROOT" ]]; then
+	PROJECT_ROOT=$(realpath ${BASH_SOURCE%/tools/scripts/$(basename $0)})
+fi
+
+if [[ -z "$1" ]]; then
+	echo "missing src directory path"
+	exit 1
+fi
+
+src_path=$(realpath -m $1)
+IFS="/" read -ra src_tree <<< "${src_path#$PROJECT_ROOT}"
+for component in ${src_tree[@]:1}; do
+
+	if [[ -z "$path" ]]; then
+		path=$component
+	else
+		path=$path/$component
+	fi
+
+	target="$path/$(basename $path).mk"
+	if [[ ! -e "$target" ]]; then
+		mkdir -p $path
+		cp $PROJECT_ROOT/tools/templates/src-template.mk $target
+	fi
+
+done

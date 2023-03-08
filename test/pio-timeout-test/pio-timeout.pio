@@ -1,0 +1,10 @@
+.program pio_timeout
+
+again:
+	mov x, y
+	
+timeout:
+	jmp x-- timeout 
+	irq set 0 rel
+	jmp again
+	
