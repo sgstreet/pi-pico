@@ -1,0 +1,9 @@
+source ~/.profile
+export PROJECT_ROOT=$(realpath ${BASH_SOURCE%/tools/scripts/workspace-rc})
+export ECLIPSE_VERSION=$(readlink ~/local/libexec/eclipse/current)
+export ECLIPSE_WORKSPACE=~/Workspace/eclipse/$ECLIPSE_VERSION/$(basename $PROJECT_ROOT)
+alias home='cd $PROJECT_ROOT'
+alias ide='$PROJECT_ROOT/tools/scripts/ide'
+alias edit='subl'
+
+cd $PROJECT_ROOT

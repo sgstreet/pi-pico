@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [[ -n $1 ]]; then
+	workspace="-data $1"
+elif [[ -n $ECLIPSE_WORKSPACE ]]; then
+	workspace="-data $ECLIPSE_WORKSPACE"
+elif [[ -d ~/Workspace/eclipse/$(readlink ~/local/libexec/eclipse/current) ]]; then
+	workspace="-data $HOME/Workspace/eclipse/$(readlink ~/local/libexec/eclispe/current)"
+fi
+
+AUTHOR="$(git config --get user.name) ($(git config --get user.email))"
+
+exec &> /dev/null
+
+$HOME/local/libexec/eclipse/current/eclipse $workspace -vmargs -Duser.name="$AUTHOR" -Xmx2048M 2>&1 > /dev/null&
