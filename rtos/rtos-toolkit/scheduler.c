@@ -60,6 +60,11 @@ extern __weak void scheduler_terminated_hook(struct task *task);
 extern __weak void scheduler_tick_hook(unsigned long ticks);
 extern __weak void scheduler_tls_init_hook(void *tls);
 
+extern __weak unsigned int scheduler_spin_lock();
+extern __weak void scheduler_spin_unlock(unsigned long state);
+extern __weak unsigned int scheduler_num_cores(void);
+extern __weak unsigned int scheduler_current_core(void);
+
 struct scheduler *scheduler = 0;
 
 static inline void sched_list_init(struct sched_list *list)
@@ -686,7 +691,7 @@ void scheduler_priority_svc(uint32_t svc, struct exception_frame *frame)
 
 	task->base_priority = priority;
 //	if (task->base_priority < task->current_priority) Will the cause a priority inheritance problem?????
-	sched_queue_reprioritize(task, task->base_priority);
+	sched_queue_reprioritize(task, priority);
 
 	/* Let the context switcher sort this out */
 	request_context_switch();
@@ -916,7 +921,7 @@ int scheduler_init(struct scheduler *new_scheduler, size_t tls_size)
 
 int scheduler_run(void)
 {
-	/* Make sure the scheduler has beed initializied */
+	/* Make sure the scheduler has been initialized */
 	if (!scheduler) {
 		errno = EINVAL;
 		return -EINVAL;
@@ -1079,7 +1084,7 @@ int scheduler_futex_wake(struct futex *futex, bool all)
 	if (is_interrupt_context()) {
 
 		/* Make the contention tracking and priority inheritance is disabled */
-		if ((futex->flags & (SCHEDULER_FUTEX_PI || SCHEDULER_FUTEX_OWNER_TRACKING)) != 0) {
+		if ((futex->flags & (SCHEDULER_FUTEX_PI | SCHEDULER_FUTEX_OWNER_TRACKING)) != 0) {
 			errno = EINVAL;
 			return -EINVAL;
 		}
@@ -1098,15 +1103,13 @@ int scheduler_futex_wake(struct futex *futex, bool all)
 		/* Very bad, resource exhausted */
 		errno = ENOSPC;
 		return -ENOSPC;
+	}
 
-	} else {
-
-		/* Send to the wake service */
-		int result = svc_call2(SCHEDULER_WAKE_SVC, (uint32_t)futex, all);
-		if (result < 0) {
-			errno = -result;
-			return result;
-		}
+	/* Send to the wake service */
+	int result = svc_call2(SCHEDULER_WAKE_SVC, (uint32_t)futex, all);
+	if (result < 0) {
+		errno = -result;
+		return result;
 	}
 
 	return 0;

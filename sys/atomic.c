@@ -31,7 +31,7 @@
 //	spin_unlock_irqrestore(ATOMIC_HW_SPINLOCK, state);
 //}
 
-uint32_t __atomic_fetch_add_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize uint32_t __atomic_fetch_add_4(volatile void *mem, uint32_t val, int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -41,7 +41,7 @@ uint32_t __atomic_fetch_add_4(volatile void *mem, uint32_t val, int model)
 	return result;
 }
 
-uint32_t __atomic_fetch_sub_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize uint32_t __atomic_fetch_sub_4(volatile void *mem, uint32_t val, int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -51,7 +51,7 @@ uint32_t __atomic_fetch_sub_4(volatile void *mem, uint32_t val, int model)
 	return result;
 }
 
-uint32_t __atomic_fetch_and_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize uint32_t __atomic_fetch_and_4(volatile void *mem, uint32_t val, int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -61,7 +61,7 @@ uint32_t __atomic_fetch_and_4(volatile void *mem, uint32_t val, int model)
 	return result;
 }
 
-uint32_t __atomic_fetch_or_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize uint32_t __atomic_fetch_or_4(volatile void *mem, uint32_t val, int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -71,7 +71,7 @@ uint32_t __atomic_fetch_or_4(volatile void *mem, uint32_t val, int model)
 	return result;
 }
 
-uint32_t __atomic_exchange_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize uint32_t __atomic_exchange_4(volatile void *mem, uint32_t val, int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -81,7 +81,7 @@ uint32_t __atomic_exchange_4(volatile void *mem, uint32_t val, int model)
 	return result;
 }
 
-bool __atomic_compare_exchange_4(volatile void *mem, void *expected, uint32_t desired, bool weak, int success, int failure)
+__fast_section __optimize bool __atomic_compare_exchange_4(volatile void *mem, void *expected, uint32_t desired, bool weak, int success, int failure)
 {
 	bool result = false;
 	volatile uint32_t *ptr = mem;
@@ -96,7 +96,7 @@ bool __atomic_compare_exchange_4(volatile void *mem, void *expected, uint32_t de
 	return result;
 }
 
-bool __atomic_test_and_set_m0(volatile void *mem, int model)
+__fast_section __optimize bool __atomic_test_and_set_m0(volatile void *mem, int model)
 {
 	volatile bool *ptr = mem;
 	uint32_t state = spin_lock_irqsave(ATOMIC_HW_SPINLOCK);
@@ -106,7 +106,7 @@ bool __atomic_test_and_set_m0(volatile void *mem, int model)
 	return result;
 }
 
-void __atomic_clear_m0(volatile void *mem, int model)
+__fast_section __optimize void __atomic_clear_m0(volatile void *mem, int model)
 {
 	volatile bool *ptr = mem;
 	/* TODO Is as spin_lock good enough here, I think so? */

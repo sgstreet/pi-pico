@@ -7,13 +7,13 @@
 
 #include <rtos/rtos.h>
 
-static void idle_task(void *context)
+static __unused void idle_task(void *context)
 {
 	while (true);
 }
 
 static __constructor void idle_ini(void)
 {
-	osThreadAttr_t idle_attr = { .name = "idle-task", .stack_size = 512, .priority = osPriorityIdle, .attr_bits = osThreadDetached };
-	osThreadNew(idle_task, 0, &idle_attr);
+//	osThreadAttr_t idle_attr = { .name = "idle-task", .stack_size = 512, .priority = osPriorityIdle, .attr_bits = osThreadDetached };
+//	osThreadNew(idle_task, 0, &idle_attr);
 }

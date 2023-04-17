@@ -5,7 +5,7 @@ export ECLIPSE_WORKSPACE=~/Workspace/eclipse/$(basename $PROJECT_ROOT)
 alias ide='$PROJECT_ROOT/tools/scripts/ide'
 alias edit='subl'
 alias mksrc='$PROJECT_ROOT/tools/scripts/mksrc'
-
+alias serial='picocom -b 115200 --imap=lfcrlf'
 alias home='cd $PROJECT_ROOT'
 
 cd $PROJECT_ROOT

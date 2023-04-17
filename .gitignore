@@ -36,3 +36,6 @@ tmp/
 eclipse/
 local/
 images/
+.cproject
+.project
+.settings/

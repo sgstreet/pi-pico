@@ -73,7 +73,7 @@ declare_weak_function default_handler, .isr
 	/* load the irq context */
 	ldr r1, [r2, #4]
 
-	/* Jump to the handler address. The handler will perform the irs return */
+	/* Jump to the handler address. The handler will perform the isr return */
 	ldr r2, [r2, #0]
 	mov pc, r2
 

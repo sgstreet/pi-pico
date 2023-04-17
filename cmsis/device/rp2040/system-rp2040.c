@@ -218,7 +218,6 @@ void SystemInit(void)
 	while ((RESETS->RESET_DONE & RESETS_RESETS_ALL) != RESETS_RESETS_ALL);
 }
 
-
 void SystemCoreClockUpdate(void)
 {
 	SystemCoreClock = rp2040_clocks[RP2040_CLOCK_SYS];

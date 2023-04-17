@@ -7,7 +7,7 @@
 #include <hal/rp2040/hal-rp2040.h>
 #include <hal/hal-lock.h>
 
-void hal_lock(unsigned int lock)
+__fast_section void hal_lock(unsigned int lock)
 {
 	assert(lock < HAL_NUM_LOCKS);
 
@@ -16,7 +16,7 @@ void hal_lock(unsigned int lock)
 	__DMB();
 }
 
-bool hal_try_lock(unsigned int lock)
+__fast_section bool hal_try_lock(unsigned int lock)
 {
 	assert(lock < HAL_NUM_LOCKS);
 
@@ -24,7 +24,7 @@ bool hal_try_lock(unsigned int lock)
 	return *lock_reg;
 }
 
-void hal_unlock(unsigned int lock)
+__fast_section void hal_unlock(unsigned int lock)
 {
 	assert(lock < HAL_NUM_LOCKS);
 

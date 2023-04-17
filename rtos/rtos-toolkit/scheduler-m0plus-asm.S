@@ -24,7 +24,7 @@ declare_function SVC_Handler_0, .isr
 	mov r5, r9
 	mov r6, r10
 	mov r7, r11
-	stmia r0!, {r4-r7}       /* Save the hight registers */
+	stmia r0!, {r4-r7}       /* Save the high registers */
 	subs r0, r0, #40         /* Make r0 point at the start of the scheduler frame */
 
 	/* Update the stack pointer */
@@ -33,7 +33,7 @@ declare_function SVC_Handler_0, .isr
 	/* Store the initial frame in the scheduler */
 	ldr r1, =scheduler
 	ldr r1, [r1]
-	str r0, [r1, #4]
+	str r0, [r1, #0]
 
 	/* Trigger the PendSV */
 	ldr r1, =0xe000ed04
@@ -71,7 +71,7 @@ declare_function PendSV_Handler, .isr
 	mov r5, r9
 	mov r6, r10
 	mov r7, r11
-	stmia r0!, {r4-r7}       /* Save the hight registers */
+	stmia r0!, {r4-r7}       /* Save the high registers */
 	subs r0, r0, #40         /* Make r0 point at the start of the scheduler frame */
 
 	/* Switch task */

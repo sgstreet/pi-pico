@@ -12,6 +12,10 @@
 extern "C" {
 #endif
 
+#define static_assert(x,y)
+
+extern void __assert_fail(const char *exp) __attribute__((noreturn));
+
 #ifdef NDEBUG
 
 /*
@@ -23,8 +27,6 @@ extern "C" {
 #define assert(x) ((void)(0))
 
 #else
-
-extern void __assert_fail(const char *exp) __attribute__((noreturn));
 
 #define assert(x) ((x) ? (void)0 : __assert_fail(#x))
 

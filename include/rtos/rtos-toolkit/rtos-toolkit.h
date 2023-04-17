@@ -5,6 +5,4 @@
 #include <rtos/rtos-toolkit/scheduler.h>
 #include <rtos/rtos-toolkit/rtos-toolkit-cmsis-os2.h>
 
-#define RTOS_IO_ERROR 0x40000000
-#define RTOS_IO_DONE 0x20000000
 #endif

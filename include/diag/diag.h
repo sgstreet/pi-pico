@@ -25,6 +25,6 @@ extern int diag_putc(int c);
 extern int diag_puts(const char *s);
 
 int diag_vprintf(const char *fmt, va_list args);
-__attribute__ ((format(printf, 1, 2))) int diag_printf(const char *fmt, ...);
+__attribute__((format(printf, 1, 2))) int diag_printf(const char *fmt, ...);
 
 #endif

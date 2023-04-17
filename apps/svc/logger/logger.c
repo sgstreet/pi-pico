@@ -175,7 +175,7 @@ static __constructor_priority(SERVICES_PRIORITY) void logger_ini(void)
 
 	/* Start up the logging task */
 	new_logger->run = true;
-	osThreadAttr_t task_attr = { .name = "logger-task", .stack_size = LOGGER_STACK_SIZE, .priority = osPriorityNormal };
+	osThreadAttr_t task_attr = { .name = "logger-task", .attr_bits = osThreadJoinable, .stack_size = LOGGER_STACK_SIZE, .priority = osPriorityNormal };
 	logger->task = osThreadNew(logger_task, new_logger, &task_attr);
 	if (!logger->task)
 		syslog_fatal("could not create logger task\n");

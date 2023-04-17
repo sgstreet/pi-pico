@@ -21,8 +21,8 @@ struct hal_dma_channel_handler
 
 static void hal_dma_default_irq_handler(uint32_t channel, void *context);
 
-static struct hal_dma_channel_handler core0_channel_handlers[] = { [0 ... HAL_NUM_DMA_CHANNELS - 1] = {.handler = hal_dma_default_irq_handler, .context = 0 } };
-static struct hal_dma_channel_handler core1_channel_handlers[] = { [0 ... HAL_NUM_DMA_CHANNELS - 1] = {.handler = hal_dma_default_irq_handler, .context = 0 } };
+static struct hal_dma_channel_handler core0_channel_handlers[] = { [0 ... HAL_NUM_DMA_CHANNELS - 1] = { .handler = hal_dma_default_irq_handler, .context = 0 } };
+static struct hal_dma_channel_handler core1_channel_handlers[] = { [0 ... HAL_NUM_DMA_CHANNELS - 1] = { .handler = hal_dma_default_irq_handler, .context = 0 } };
 
 void DMA_IRQ_0_Handler(void);
 __isr_section void DMA_IRQ_0_Handler(void)

@@ -14,5 +14,7 @@
 ifeq ($(findstring ${BUILD_ROOT},${CURDIR}),)
 include ${PROJECT_ROOT}/tools/makefiles/target.mk
 else
+
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
+
 endif

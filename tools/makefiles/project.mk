@@ -30,12 +30,15 @@ TARGET_OBJ := $(foreach dir, $(addprefix ${BUILD_ROOT}/, ${TARGET_OBJ_LIBS}), $(
 #$(info BUILD_ROOT=${BUILD_ROOT})
 #$(info SRC=${SRC})
 #$(info OBJ=${OBJ})
+#$(info TARGET_OBJS=${TARGET_OBJS})
+#$(info TARGET_OBJ_LIBS=${TARGET_OBJ_LIBS})
 #$(info TARGET_OBJ=${TARGET_OBJ})
 #$(info EXTRA_DEPS=${EXTRA_DEPS})
 #$(info EXTRA_TARGETS=${EXTRA_TARGETS})
 #$(info TARGET=${TARGET})
 #$(info ALL-TARGET=$(addprefix ${CURDIR}/,${TARGET}))
 #$(info CURDIR=${CURDIR})
+#$(info MAKECMDGOALS=${MAKECMDGOALS})
 
 .SECONDARY:
 
@@ -51,11 +54,11 @@ install:
 
 ${EXTRA_DEPS} ${EXTRA_LIB_DEPS} ${EXTRA_ELF_DEPS} ${TARGET_OBJ}:
 
-${CURDIR}/%.a: ${OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
+${CURDIR}/%.a: ${OBJ} ${TARGET_OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
 	@echo "ARCHIVING $@"
-	$(AR) ${ARFLAGS} $@ ${OBJ}
-
-${CURDIR}/%.so: ${OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
+	$(AR) ${ARFLAGS} $@ ${OBJ} ${TARGET_OBJ}
+ 
+${CURDIR}/%.so: ${OBJ} ${TARGET_OBJ} ${EXTRA_LIB_DEPS} ${EXTRA_DEPS}
 	@echo "LINKING $@"
 	$(LD) --shared -Wl,-soname,$@ ${LOADLIBES} ${LDFLAGS} -Wl,--cref -Wl,-Map,"$(basename ${@}).map" -o $@ ${OBJ} ${LDLIBS}
 	$(NM) -n $@ | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)' > ${@:%.so=%.smap}

@@ -12,6 +12,7 @@
 #
 
 -include ${PROJECT_ROOT}/tools/makefiles/${ARCH_CROSS}.mk
--include ${PROJECT_ROOT}/tools/makefiles/${BUILD_TYPE}.mk
+-include ${PROJECT_ROOT}/tools/makefiles/${CHIP_TYPE}.mk
 -include ${PROJECT_ROOT}/tools/makefiles/${BOARD_TYPE}.mk
+-include ${PROJECT_ROOT}/tools/makefiles/${BUILD_TYPE}.mk
 

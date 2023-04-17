@@ -170,7 +170,7 @@ static __constructor_priority(SERVICES_PRIORITY) void shell_ini(void)
 
 	/* Launch the shell thread */
 	shell->run = true;
-	osThreadAttr_t thread_attr = { .name = "shell-task", .stack_size = SHELL_COMMAND_STACK_SIZE };
+	osThreadAttr_t thread_attr = { .name = "shell-task", .attr_bits = osThreadJoinable, .stack_size = SHELL_COMMAND_STACK_SIZE };
 	shell->shell_task = osThreadNew(shell_task, shell, &thread_attr);
 	if (!shell->shell_task)
 		syslog_fatal("could not create shell task\n");
@@ -182,6 +182,7 @@ static __destructor_priority(SERVICES_PRIORITY) void shell_fini(void)
 
 	/* Stop the thread */
 	shell->run = false;
+	fflush(stdin);
 	osStatus_t os_status = osThreadJoin(shell->shell_task);
 	if (os_status != osOK) {
 		syslog_error("failed to join shell task: %d\n", os_status);

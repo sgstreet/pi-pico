@@ -186,6 +186,6 @@ __isr_section __noreturn __weak void _start(void)
 	/* Forward to the next stage */
 	int status = _main(argc, argv);
 
-	/* Forward to the exist routine with the result */
+	/* Forward to the _exit routine with the result, this bypasses the picolib calls to fini at  */
 	exit(status);
 }

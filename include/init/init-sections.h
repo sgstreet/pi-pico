@@ -30,7 +30,7 @@
 
 #define PREINIT_PRIORITY(PRIORITY) ".preinit_array.00" #PRIORITY
 #define PREINIT_SECTION(SECTION) ".preinit_array." #SECTION
-#define PREINIT(NAME) void *__attribute__(used, section(PREINIT_SECTION(NAME))) preinit_##NAME = NAME
+#define PREINIT(NAME) void *__attribute__((used, section(PREINIT_SECTION(NAME)))) preinit_##NAME = NAME
 #define PREINIT_WITH_PRIORITY(NAME, PRIORITY) void *__attribute__((used, section(PREINIT_PRIORITY(PRIORITY)))) preinit_##NAME = NAME
 
 //extern __weak void (*__preinit_array_start[])(void);

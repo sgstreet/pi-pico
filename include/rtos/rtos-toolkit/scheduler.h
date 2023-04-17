@@ -204,10 +204,7 @@ struct futex
 
 struct scheduler
 {
-	/* This must be the first field, PendSV depends on it */
-	struct task *current;
-
-	/* Must be the second field the scheduler start service depends on it */
+	/* Must be the first field the scheduler start service depends on it */
 	struct scheduler_frame *initial_frame;
 
 	size_t tls_size;
@@ -227,6 +224,8 @@ struct scheduler
 	unsigned long deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
 
 	unsigned long marker;
+
+	struct task *current;
 };
 
 static inline __always_inline unsigned long scheduler_enter_critical(void)

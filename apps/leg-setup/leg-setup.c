@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <init/init-sections.h>
 
@@ -19,11 +20,9 @@
 
 #include <svc/shell.h>
 
-#include "leg-manager.h"
+#include <legs/leg-manager.h>
 
 #define NUM_LEGS 1
-
-struct leg_manager *leg_manager = 0;
 
 static osThreadId_t main_id = 0;
 
@@ -56,41 +55,30 @@ void save_fault(const struct cortexm_fault *fault, const struct backtrace *entri
 		diag_printf("%s@%p - %p\n", entries[i].name, entries[i].function, entries[i].address);
 }
 
-thread_local uint32_t init_me = 0xdeadbeef;
-thread_local uint32_t uninit_me;
+__noreturn void __assert_fail(const char *expr)
+{
+	diag_printf("assert failed: %s\n", expr);
+	__builtin_trap();
+	abort();
+}
 
 int main(int argc, char **argv)
 {
-
-	uninit_me = 0xbeefdead;
-
-	syslog_info("__tdata: %p\n", &__tdata);
-	syslog_info("__tdata_size: %p\n", &__tdata_size);
-	syslog_info("__tbss_size: %p\n", &__tbss_size);
-	syslog_info("__tls_size: %p\n", &__tls_size);
-	syslog_info("__tbss_offset: %p\n", &__tbss_offset);
-	syslog_info("__tls_align: %p\n", &__tls_align);
-	syslog_info("__arm32_tls_tcb_offset: %p\n", &__arm32_tls_tcb_offset);
-	syslog_info("__arm64_tls_tcb_offset: %p\n", &__arm64_tls_tcb_offset);
-
-	syslog_info("init_me %p 0x%08lx\n", &init_me, init_me);
-	syslog_info("uninit_me %p 0x%08lx\n", &uninit_me, uninit_me);
-
-	syslog_info("creating leg manager with %u legs\n", NUM_LEGS);
-	leg_manager = leg_manager_create(NUM_LEGS, 57600, 10);
-	if (!leg_manager) {
-		syslog_error("could not create leg manager: %d\n", errno);
-		return EXIT_FAILURE;
-	}
+	float a = M_PI;
+	float b = 4096.0;
+	float scale = a / b;
+	unsigned int test_bits = 0x0fff;
+	unsigned int lz = __builtin_clz(test_bits);
+	int64_t a64 = 10;
+	int64_t b64 = 42398462;
+	int64_t c64 = a64 * b64;
 
 	/* Wait for exit */
-	syslog_info("waiting for exit\n");
+	syslog_info("waiting for exit: %f, lz: %u %lld\n", scale, lz, c64);
 	main_id = osThreadGetId();
 	osThreadFlagsWait(0x7fffffff, osFlagsWaitAny, osWaitForever);
 
-	/* Clean */
-	syslog_info("cleaning up leg manager\n");
-	leg_manager_destroy(leg_manager);
+	syslog_info("main exiting\n");
 
 	return EXIT_SUCCESS;
 }

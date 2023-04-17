@@ -31,7 +31,7 @@ include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
 LDSCRIPTS := -L${PROJECT_ROOT}/ldscripts -T memory.ld -T regions-flash.ld -T sections.ld
 
-all: ${INSTALL_ROOT}/hello-world-rtos.bin ${INSTALL_ROOT}/hello-world-rtos.elf ${INSTALL_ROOT}/hello-world-rtos.uf2
+all: ${INSTALL_ROOT}/hello-world-rtos.elf ${INSTALL_ROOT}/hello-world-rtos.bin ${INSTALL_ROOT}/hello-world-rtos.uf2
 
 ${INSTALL_ROOT}/hello-world-rtos.uf2: ${CURDIR}/hello-world-rtos.uf2
 	@echo "INSTALLING ${@}"

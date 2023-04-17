@@ -15,7 +15,9 @@ ifeq ($(findstring ${BUILD_ROOT},${CURDIR}),)
 
 half-duplex-rx-test: devices
 half-duplex-test: devices
-leg-setup: devices svc
+dynamixel: devices
+legs: dynamixel
+leg-setup: legs svc
 target: half-duplex-test half-duplex-rx-test leg-setup rocket-hex
 
 include ${PROJECT_ROOT}/tools/makefiles/target.mk

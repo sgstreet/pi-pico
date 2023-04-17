@@ -63,11 +63,10 @@ SECTIONS
     	
 		*(.isr .isr.*)
 		        
-		*(.text .text.*)
+/*		*(.text .text.*)*/
 		        
         *(.init)
-        *(.text*)
-/*        *(EXCLUDE_FILE(*libgcc.a: *libc.a:*lib_a-mem*.o *libm.a:) .text*)*/
+        *(EXCLUDE_FILE(*libgcc.a: *libc.a:*mem*.o *libm.a:) .text*)
         *(.fini)
 
         /* Pull all c'tors into .text */
@@ -137,8 +136,8 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		__rodata_start__ = .;
-		*(.rodata .rodata.*)
-/*		*(EXCLUDE_FILE(*libgcc.a: *libc.a:*lib_a-mem*.o *libm.a:) .rodata*)*/
+/*		*(.rodata .rodata.*)*/
+		*(EXCLUDE_FILE(*libgcc.a: *libc.a:*mem*.o *libm.a:) .rodata*)
 		. = ALIGN(4);
 		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.flashdata*)))
 		

@@ -19,6 +19,7 @@ EXTRA_DEPS := ${SOURCE_DIR}/leg-setup.mk ${PROJECT_ROOT}/ldscripts/sections.ld $
 EXTRA_CLEAN := ${INSTALL_ROOT}/leg-setup.bin ${INSTALL_ROOT}/leg-setup.elf ${INSTALL_ROOT}/leg-setup.uf2
 
 TARGET_OBJ_LIBS := bootstrap
+TARGET_OBJ_LIBS += runtime
 TARGET_OBJ_LIBS += board board/${BOARD_TYPE}
 TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += sys
@@ -26,8 +27,10 @@ TARGET_OBJ_LIBS += cmsis/device/rp2040
 TARGET_OBJ_LIBS += init
 TARGET_OBJ_LIBS += hal/hal-${CHIP_TYPE}
 TARGET_OBJ_LIBS += rtos/rtos-toolkit rtos/rtos-toolkit/cmsis-rtos2
-TARGET_OBJ_LIBS += apps/devices apps/devices/console apps/devices/half-duplex apps/devices/dynamixel apps/devices/buzzer
+TARGET_OBJ_LIBS += apps/devices apps/devices/console apps/devices/half-duplex apps/devices/buzzer
 TARGET_OBJ_LIBS += apps/svc/shell apps/svc/logger
+
+TARGET_OBJ_LIBS += apps/legs apps/dynamixel
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 

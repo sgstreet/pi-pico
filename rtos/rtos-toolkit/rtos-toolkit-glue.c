@@ -22,6 +22,8 @@ extern void _init_tls(void *__tls_block);
 
 void scheduler_switch_hook(struct task *task);
 void scheduler_tls_init_hook(void *tls);
+void _init(void);
+void __libc_fini_array(void);
 
 struct __lock __lock___libc_recursive_mutex;
 
@@ -40,6 +42,10 @@ __naked void *__aeabi_read_tp(void)
 }
 #endif
 
+/* We manage fini array invocation, ignore picolibc */
+void __libc_fini_array(void)
+{
+}
 
 void __retarget_lock_init(_LOCK_T *lock)
 {
@@ -170,7 +176,6 @@ void __retarget_lock_release_recursive(_LOCK_T lock)
 	__retarget_lock_release(lock);
 }
 
-void _init(void);
 void _init(void)
 {
 	_LOCK_T lock = &__lock___libc_recursive_mutex;
