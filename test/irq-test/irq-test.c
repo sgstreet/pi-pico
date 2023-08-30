@@ -8,6 +8,7 @@
 #include <sys/swi.h>
 #include <sys/systick.h>
 
+#define SWITCH_SWI (BOARD_SWI_NUM - 1)
 #define DELAY_MASK 0xffe0
 #define TRIGGER_MASK 0xfff0
 
@@ -17,7 +18,7 @@ static unsigned int value = 0;
 static volatile bool state = false;
 static volatile bool run = false;
 
-static void debounce(void)
+static void debounce(void *context)
 {
 	if (!run)
 		return;
@@ -26,13 +27,12 @@ static void debounce(void)
 	up_state = (up_state << 1) | !value | DELAY_MASK;
 	down_state = (down_state << 1) | value | DELAY_MASK;
 
-	bool new_state = up_state == TRIGGER_MASK;
+	bool new_state = down_state == TRIGGER_MASK;
 	if (new_state ^ state) {
 		state = new_state;
-		swi_trigger(0);
+		swi_trigger(SWITCH_SWI);
 	}
 }
-DECLARE_SYSTICK(debounce);
 
 static void debounce_handler(unsigned int swi, void *context)
 {
@@ -47,8 +47,10 @@ int main(int argc, char **argv)
 	PADS_BANK0->GPIO15 |= PADS_BANK0_GPIO15_IE_Msk | PADS_BANK0_GPIO15_PUE_Msk;
 	IO_BANK0->GPIO15_CTRL = (5UL << IO_BANK0_GPIO15_CTRL_FUNCSEL_Pos);
 
+	systick_register_handler(debounce, 0);
+
 	/* Register SWI handler */
-	swi_register(0, INTERRUPT_BELOW_NORMAL, debounce_handler, 0);
+	swi_register(SWITCH_SWI, INTERRUPT_NORMAL, debounce_handler, 0);
 
 	run = true;
 	while (run) {

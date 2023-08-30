@@ -6,18 +6,13 @@
  */
 
 #include <stdlib.h>
+#include <compiler.h>
 
-#include <init/init-sections.h>
 #include <diag/diag.h>
 
-extern void __aeabi_mem_init(void);
-extern void __aeabi_bits_init(void);
-extern void __aeabi_float_init(void);
-extern void __aeabi_double_init(void);
+__noreturn void panic(const char *fmt, ...);
 
-__attribute__((format(printf, 1, 2))) void panic(const char *fmt, ...);
-
-__noreturn void panic(const char *fmt, ...)
+void panic(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -31,12 +26,3 @@ __noreturn void panic(const char *fmt, ...)
 
 	abort();
 }
-
-static void runtime_init(void)
-{
-	__aeabi_mem_init();
-	__aeabi_bits_init();
-	__aeabi_float_init();
-	__aeabi_double_init();
-}
-PREINIT_SYSINIT_WITH_PRIORITY(runtime_init, 005);

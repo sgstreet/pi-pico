@@ -30,19 +30,30 @@ declare_function SVC_Handler_0, .isr
 	/* Update the stack pointer */
 	mov sp, r0
 
-	/* Store the initial frame in the scheduler */
-	ldr r1, =scheduler
-	ldr r1, [r1]
-	str r0, [r1, #0]
+	/* First load the core location store pointer for this core */
+	ldr r0,=__aeabi_read_cls
+	blx r0
+
+	/* Now calculate the offset to the scheduler initial frame */
+	ldr r1, =scheduler_initial_frame
+	ldr r3, =__core_data
+	subs r1, r1, r3
+
+	/* This is the final memory address of the scheduler initial frame on a per core basis */
+	add r0, r0, r1
+
+	/* Final save the scheduler frame */
+	mov r1, sp
+	str r1, [r0, #0]
 
 	/* Trigger the PendSV */
 	ldr r1, =0xe000ed04
-	ldr r2, =0x10000000
-	str r2, [r1]
+	ldr r3, =0x10000000
+	str r3, [r1]
 	dsb
 
 	/* We should go into the scheduler and only return on scheduler exit */
-	bx lr
+	bx r2
 
 	.fnend
 	.pool

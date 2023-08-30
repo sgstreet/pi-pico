@@ -84,7 +84,7 @@ static void dma_handler(uint32_t channel, void *context)
 	struct half_duplex *hd = context;
 
 	/* Disable the DMA, not sure why this is required but... */
-	hw_clear_alias(hd->dma->alt1_ctrl) = 0x00000001;
+	HW_CLEAR_ALIAS(hd->dma->alt1_ctrl) = 0x00000001;
 
 	/* Set flags based on channel state */
 	switch (hd->channel_state) {

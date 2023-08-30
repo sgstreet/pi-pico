@@ -65,7 +65,7 @@ static __isr_section int backtrace_fault(const struct cortexm_fault *fault, stru
 	backtrace_frame.pc = fault->PC;
 
 	/* Use PC if it is good */
-	/* TODO Make this 100% right not usr what to do on cortex-m0+
+	/* TODO Make this 100% right not sure what to do on cortex-m0+
 	if ((fault->CFSR & (1 << 17)) != 0)
 		backtrace_frame.pc = fault->LR;
     */
@@ -84,6 +84,8 @@ __isr_section void hard_fault(const struct fault_frame *fault_frame, const struc
 
 	/* Backtrace the fault */
 	entries = backtrace_fault(&fault, fault_backtrace, FAULT_BACKTRACE_SIZE);
+
+	__BKPT(100);
 
 	/* Save the fault information */
 	save_fault(&fault, fault_backtrace, entries);

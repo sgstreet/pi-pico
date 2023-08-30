@@ -24,6 +24,7 @@ TARGET_OBJ_LIBS += cmsis/device/${CHIP_TYPE}
 TARGET_OBJ_LIBS += board board/${BOARD_TYPE}
 TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += init
+TARGET_OBJ_LIBS += hal/hal-${CHIP_TYPE}
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 

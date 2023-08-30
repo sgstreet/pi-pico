@@ -30,9 +30,10 @@ __weak void _rtos2_release(void *ptr)
 {
 }
 
+static struct rtos_kernel kernel = { .state = osKernelInactive };
+
 osStatus_t osKernelInitialize(void)
 {
-	static struct rtos_kernel kernel = { .state = osKernelInactive };
 
 	const char *resource_names[] =
 	{
@@ -44,7 +45,7 @@ osStatus_t osKernelInitialize(void)
 		"eventflags",
 		"timer",
 		"message_queue",
-		"ring_buffer",
+		"deque",
 	};
 	const size_t resource_offsets[] =
 	{
@@ -62,6 +63,7 @@ osStatus_t osKernelInitialize(void)
 	{
 		RTOS_THREAD_MARKER,
 		RTOS_MUTEX_MARKER,
+		RTOS_MUTEX_MARKER,
 		RTOS_MEMORY_POOL_MARKER,
 		RTOS_SEMAPHORE_MARKER,
 		RTOS_EVENTFLAGS_MARKER,
@@ -69,6 +71,10 @@ osStatus_t osKernelInitialize(void)
 		RTOS_MESSAGE_QUEUE_MARKER,
 		RTOS_DEQUE_MARKER,
 	};
+
+	/* Initialize the critical section */
+	kernel.critical = UINT32_MAX;
+	kernel.critical_counter = 0;
 
 	/* Can not be called from interrupt context */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -170,13 +176,13 @@ int32_t osKernelLock(void)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	unsigned long state = scheduler_enter_critical();
+	uint32_t state = osKernelEnterCritical();
 	int32_t prev_lock = rtos2_kernel->locked;
 	rtos2_kernel->locked = true;
 	rtos2_kernel->state = osKernelLocked;
 	if (!prev_lock)
 		scheduler_lock();
-	scheduler_exit_critical(state);
+	osKernelExitCritical(state);
 
 	/* Previous state */
 	return prev_lock;
@@ -194,13 +200,13 @@ int32_t osKernelUnlock(void)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	unsigned long state = scheduler_enter_critical();
+	uint32_t state = osKernelEnterCritical();
 	int32_t prev_lock = rtos2_kernel->locked;
 	rtos2_kernel->locked = false;
 	rtos2_kernel->state = osKernelRunning;
 	if (prev_lock)
 		scheduler_unlock();
-	scheduler_exit_critical(state);
+	osKernelExitCritical(state);
 
 	/* Return the previous lock state */
 	return prev_lock;
@@ -218,7 +224,7 @@ int32_t osKernelRestoreLock(int32_t lock)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	unsigned long state = scheduler_enter_critical();
+	uint32_t state = osKernelEnterCritical();
 	rtos2_kernel->locked = lock;
 	if (lock) {
 		scheduler_lock();
@@ -227,7 +233,7 @@ int32_t osKernelRestoreLock(int32_t lock)
 		scheduler_unlock();
 		rtos2_kernel->state = osKernelRunning;
 	}
-	scheduler_exit_critical(state);
+	osKernelExitCritical(state);
 
 	/* Return the previous lock state */
 	return rtos2_kernel->locked;
@@ -263,7 +269,7 @@ void osKernelResume(uint32_t sleep_ticks)
 
 uint32_t osKernelGetTickCount(void)
 {
-	return (uint32_t)(scheduler_jiffies() & 0xffffffff);
+	return scheduler_get_ticks();
 }
 
 uint32_t osKernelGetTickFreq(void)
@@ -306,44 +312,10 @@ void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func)
 
 	/*  Mark as done */
 	*once_flag = 2;
+	__DSB();
 }
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node)
-{
-	/* This would be bad */
-	osStatus_t os_status = osKernelContextIsValid(false, 0);
-	if (os_status != osOK)
-		return os_status;
-
-	/* Make a node was provided */
-	if (!node) {
-		errno = EINVAL;
-		return osErrorParameter;
-	}
-
-	/* Get the resource from the kernel */
-	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
-
-	/* Lock the resource, skip is kernel is not running */
-	if (osKernelGetState() == osKernelRunning) {
-		os_status = osMutexAcquire(&resource->resource_lock, osWaitForever);
-		if (os_status != osOK)
-			return os_status;
-	}
-
-	/* Add it */
-	list_add(&resource->resource_list, node);
-
-
-	/* Release the resource reporting any errors, if the kernel is running */
-	if (osKernelGetState() != osKernelRunning)
-		return osOK;
-
-	/* Need the release the mutex */
-	return osMutexRelease(&resource->resource_lock);
-}
-
-osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node)
 {
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -364,8 +336,8 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 			return os_status;
 	}
 
-	/* Remove it */
-	list_remove(node);
+	/* Add it */
+	list_add(&resource->resource_list, node);
 
 	/* Release the resource reporting any errors, if the kernel is running */
 	if (osKernelGetState() != osKernelRunning)
@@ -373,6 +345,38 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 
 	/* Need the release the mutex */
 	return osMutexRelease(&resource->resource_lock);
+}
+
+osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node)
+{
+	/* This would be bad */
+	osStatus_t os_status = osKernelContextIsValid(false, 0);
+	if (os_status != osOK)
+		return os_status;
+
+	/* Make sure a node was provided */
+	if (!node)
+		return osErrorParameter;
+
+	/* Get the resource from the kernel */
+	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
+
+	/* Lock the resource, skip is kernel is not running */
+	if (osKernelGetState() == osKernelRunning) {
+		os_status = osMutexAcquire(&resource->resource_lock, osWaitForever);
+		if (os_status != osOK)
+			return os_status;
+	}
+
+	/* Remove it */
+	list_remove(node);
+
+	/* Release the resource reporting any errors, if the kernel is running */
+	if (osKernelGetState() == osKernelRunning)
+		return osMutexRelease(&resource->resource_lock);
+
+	/* Kernel not running so everything is ok */
+	return osOK;
 }
 
 bool osKernelResourceIsLocked(osResourceId_t resource_id)
@@ -401,7 +405,7 @@ osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForE
 	/* Get the resource from the kernel */
 	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
 
-	/* Lock the resource, skip is kernel is not running */
+	/* Lock the resource, skip if kernel is not running */
 	if (osKernelGetState() == osKernelRunning) {
 		os_status = osMutexAcquire(&resource->resource_lock, osWaitForever);
 		if (os_status != osOK)
@@ -466,10 +470,8 @@ static osStatus_t osKernelDumpResource(osResource_t resource, void *context)
 osStatus_t osKernelResourceDump(osResourceId_t resource_id)
 {
 	/* Check the kernel state */
-	if (rtos2_kernel == 0 || rtos2_kernel->state != osKernelRunning) {
-		errno = EINVAL;
+	if (rtos2_kernel == 0 || rtos2_kernel->state != osKernelRunning)
 		return osErrorResource;
-	}
 
 	osResourceMarker_t marker = 0;
 	switch (resource_id) {
@@ -503,6 +505,66 @@ osStatus_t osKernelResourceDump(osResourceId_t resource_id)
 
 	/* Run the iterator */
 	return osKernelResourceForEach(resource_id, osKernelDumpResource, (void *)marker);
+}
+
+static osStatus_t osKernelResourceReqistered(const osResource_t resource, void *context)
+{
+	osResource_t target = context;
+	if (resource == target)
+		return true;
+	return osOK;
+}
+
+osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResourceNode_t node)
+{
+	int status = osKernelResourceForEach(resource_id, osKernelResourceReqistered, node);
+	if (status >= 1)
+		return osOK;
+	return osErrorResource;
+}
+
+__weak uint32_t osKernelCurrentCore(void)
+{
+	return 0;
+}
+
+uint32_t osKernelEnterCritical(void)
+{
+	uint32_t state = disable_interrupts();
+	uint32_t expected = UINT32_MAX;
+	while (!atomic_compare_exchange_strong(&rtos2_kernel->critical, &expected, osKernelCurrentCore())) {
+		if (expected == osKernelCurrentCore()) {
+			++rtos2_kernel->critical_counter;
+			return state;
+		}
+
+		/* Wait for the release */
+		__WFE();
+	}
+
+	/* Initialize the counter */
+	rtos2_kernel->critical_counter = 1;
+
+	/* Return the interrupt state */
+	return state;
+}
+
+void osKernelExitCritical(uint32_t state)
+{
+	/* Handle nested critical sections */
+	if (atomic_load(&rtos2_kernel->critical) == osKernelCurrentCore() && rtos2_kernel->critical_counter > 1) {
+		--rtos2_kernel->critical;
+		return;
+	}
+
+	/* Release the critical section */
+	atomic_store(&rtos2_kernel->critical, UINT32_MAX);
+
+	/* Kick the other cores */
+	__SEV();
+
+	/* All the interrupts */
+	enable_interrupts(state);
 }
 
 struct arguments

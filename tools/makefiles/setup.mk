@@ -8,7 +8,7 @@ PICO_SDK_TARGET := ${PICO_SDK_PATH}/CMakeLists.txt
 
 #https://github.com/Open-CMSIS-Pack/devtools/releases/download/tools/svdconv/3.3.44/svdconv-3.3.44-linux64-amd64.tbz2
 
-SVDCONV_VERSION ?= 3.3.44
+SVDCONV_VERSION ?= 3.3.45
 SVDCONV_ARCHIVE := svdconv-${SVDCONV_VERSION}-linux64-amd64.tbz2
 SVDCONV_PATH := ${PROJECT_ROOT}/tmp/
 SVDCONV_URL := https://github.com/Open-CMSIS-Pack/devtools/releases/download/tools/svdconv/${SVDCONV_VERSION}/${SVDCONV_ARCHIVE}

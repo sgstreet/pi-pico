@@ -19,7 +19,6 @@ EXTRA_DEPS := ${SOURCE_DIR}/leg-setup.mk ${PROJECT_ROOT}/ldscripts/sections.ld $
 EXTRA_CLEAN := ${INSTALL_ROOT}/leg-setup.bin ${INSTALL_ROOT}/leg-setup.elf ${INSTALL_ROOT}/leg-setup.uf2
 
 TARGET_OBJ_LIBS := bootstrap
-TARGET_OBJ_LIBS += runtime
 TARGET_OBJ_LIBS += board board/${BOARD_TYPE}
 TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += sys

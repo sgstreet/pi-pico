@@ -16,9 +16,6 @@ struct arguments
 	int ret;
 };
 
-///* Hook into the daemon task dead */
-//void scheduler_dead_task_hook(void *stack);
-
 /* Memory management hooks */
 extern void *_thrd_alloc(size_t size);
 extern void _thrd_release(void *ptr);
@@ -141,14 +138,14 @@ int	cnd_timedwait(cnd_t *cnd, mtx_t *mtx, const struct timespec *tm)
 {
 	assert(tm != 0);
 
-	unsigned long long jiffies = scheduler_jiffies();
-	unsigned long long tm_jiffies = (tm->tv_sec * 1000) + (tm->tv_nsec / 1000000);
+	unsigned long ticks = scheduler_get_ticks();
+	unsigned long long tm_ticks = (tm->tv_sec * 1000) + (tm->tv_nsec / 1000000);
 
 	/* Have we already miss the timeout? */
-	if (jiffies < tm_jiffies || tm_jiffies - jiffies >= UINT32_MAX)
+	if (ticks < tm_ticks || tm_ticks - ticks >= UINT32_MAX)
 		return thrd_timedout;
 
-	return _cnd_wait(cnd, mtx, (unsigned long)(tm_jiffies - jiffies));
+	return _cnd_wait(cnd, mtx, tm_ticks - ticks);
 }
 
 static int _cnd_wakeup(struct cnd *cnd, bool all)
@@ -246,13 +243,13 @@ static int _mtx_lock(mtx_t *mtx, unsigned long msec)
 
 	/* Run the lock algo */
 	long expected = 0;
-	if (!atomic_compare_exchange_strong(&mtx->value, &expected, value)) {
+	while (!atomic_compare_exchange_strong(&mtx->value, &expected, value)) {
 		int status = scheduler_futex_wait(&mtx->futex, expected, msec);
 		if (status < 0) {
 			errno = -status;
 			return status == -ETIMEDOUT ? thrd_timedout : thrd_error;
 		}
-		assert(value == (mtx->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING));
+		expected = 0;
 	}
 
 	/* Initialize the count for recursive locks */
@@ -278,14 +275,14 @@ int mtx_timedlock(mtx_t *mtx, const struct timespec *tm)
 		return thrd_error;
 	}
 
-	unsigned long long jiffies = scheduler_jiffies();
-	unsigned long long tm_jiffies = (tm->tv_sec * 1000) + (tm->tv_nsec / 1000000);
+	unsigned long ticks = scheduler_get_ticks();
+	unsigned long long tm_ticks = (tm->tv_sec * 1000) + (tm->tv_nsec / 1000000);
 
 	/* Have we already miss the timeout? */
-	if (jiffies < tm_jiffies || tm_jiffies - jiffies >= UINT32_MAX)
+	if (ticks < tm_ticks || tm_ticks - ticks >= UINT32_MAX)
 		return thrd_timedout;
 
-	return _mtx_lock(mtx, (unsigned long)(tm_jiffies - jiffies));
+	return _mtx_lock(mtx, tm_ticks - ticks);
 }
 
 int mtx_unlock(mtx_t *mtx)

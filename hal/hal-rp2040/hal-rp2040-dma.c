@@ -86,9 +86,9 @@ void hal_dma_enable_irq(uint32_t channel)
 	assert(channel < HAL_NUM_DMA_CHANNELS);
 
 	if (SIO->CPUID)
-		hw_set_alias(DMA->INTE1) = (1UL << channel);
+		HW_SET_ALIAS(DMA->INTE1) = (1UL << channel);
 	else
-		hw_set_alias(DMA->INTE0) = (1UL << channel);
+		HW_SET_ALIAS(DMA->INTE0) = (1UL << channel);
 }
 
 void hal_dma_disable_irq(uint32_t channel)
@@ -96,9 +96,9 @@ void hal_dma_disable_irq(uint32_t channel)
 	assert(channel < HAL_NUM_DMA_CHANNELS);
 
 	if (SIO->CPUID)
-		hw_clear_alias(DMA->INTE1) = (1UL << channel);
+		HW_CLEAR_ALIAS(DMA->INTE1) = (1UL << channel);
 	else
-		hw_clear_alias(DMA->INTE0) = (1UL << channel);
+		HW_CLEAR_ALIAS(DMA->INTE0) = (1UL << channel);
 }
 
 void hal_dma_clear_irq(uint32_t channel)
@@ -114,7 +114,7 @@ void hal_dma_clear_irq(uint32_t channel)
 void hal_dma_start(uint32_t channel)
 {
 	assert(channel < HAL_NUM_DMA_CHANNELS);
-	hw_set_alias(DMA->MULTI_CHAN_TRIGGER) = (1UL << channel);
+	HW_SET_ALIAS(DMA->MULTI_CHAN_TRIGGER) = (1UL << channel);
 }
 
 void hal_dma_abort(uint32_t channel)

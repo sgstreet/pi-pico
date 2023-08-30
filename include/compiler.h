@@ -37,7 +37,8 @@
 #endif
 
 #ifndef __fast_section
-#define __fast_section __attribute__((section(".fast")))
+//#define __fast_section __attribute__((section(".fast")))
+#define __fast_section
 #endif
 
 #ifndef __optimize
@@ -97,6 +98,20 @@
 
 #ifndef thread_local
 #define	thread_local _Thread_local
+#endif
+
+#ifndef core_local
+#define core_local __section(".core_data")
+#endif
+
+#ifndef cls_datum
+#define cls_offset(datum) ({extern void *__core_data; ((size_t)&datum - (size_t)&__core_data);})
+#define cls_ptr() ({extern void *__aeabi_read_cls(void);__aeabi_read_cls();})
+#define cls_core_ptr(core) ({extern void *__aeabi_read_core_cls(unsigned long);__aeabi_read_core_cls(core);})
+#define cls_datum_ptr(datum) ((typeof(datum) *)(cls_ptr() + cls_offset(datum)))
+#define cls_datum(datum) (*(cls_datum_ptr(datum)))
+#define cls_datum_core_ptr(core, datum) ((typeof(datum) *)(cls_core_ptr(core) + cls_offset(datum)))
+#define cls_datum_core(core, datum) (*(cls_datum_core_ptr(core, datum)))
 #endif
 
 #endif

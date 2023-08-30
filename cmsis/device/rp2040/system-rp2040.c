@@ -3,6 +3,7 @@
 
 #include <cmsis/cmsis.h>
 #include <board/board.h>
+#include <init/init-sections.h>
 
 /* TODO Fix SVD - Missing from SVD */
 #define CLOCKS_CLK_REF_CTRL_SRC_ROSC_CLKSRC_PH (0UL << CLOCKS_CLK_REF_CTRL_SRC_Pos)
@@ -61,6 +62,10 @@
 #define RP2040_CLOCK_ADC 8UL
 #define RP2040_CLOCK_RTC 9UL
 
+extern __attribute__((noreturn)) void *rom_func_lookup(uint32_t);
+
+const uint32_t SystemNumCores = 2;
+volatile uint32_t *const system_current_core = (volatile uint32_t *const)&(SIO->CPUID);
 
 uint32_t SystemCoreClock = BOARD_CLOCK_SYS_HZ;
 uint32_t rp2040_clocks[RP2040_NUM_CLOCKS] =
@@ -222,3 +227,90 @@ void SystemCoreClockUpdate(void)
 {
 	SystemCoreClock = rp2040_clocks[RP2040_CLOCK_SYS];
 }
+
+void SystemResetCore(uint32_t core)
+{
+	/* Power off the core */
+	set_bit(&PSM->FRCE_OFF, PSM_FRCE_OFF_proc1_Pos);
+
+	/* Wait for it to be powered off */
+	while ((PSM->DONE & PSM_DONE_proc1_Msk) != 0);
+
+	/* Power it back on */
+	clear_bit(&PSM->FRCE_OFF, PSM_FRCE_OFF_proc1_Pos);
+
+	/* Wait for it to be powered on */
+	while ((PSM->DONE & PSM_DONE_proc1_Msk) == 0);
+}
+
+void SystemLaunchCore(uint32_t core, uintptr_t vector_table, uintptr_t stack_pointer, void (*entry_point)(void))
+{
+	const uint32_t boot_cmds[] = { 0, 0, 1, vector_table, stack_pointer, (uintptr_t)entry_point };
+
+	/* No PROC 0 interrupts while we launch the core */
+	bool irq_state = NVIC_GetEnableIRQ(SIO_IRQ_PROC0_IRQn);
+	NVIC_DisableIRQ(SIO_IRQ_PROC0_IRQn);
+
+	/* Clean up the FIFO status */
+	SIO->FIFO_ST = SIO_FIFO_ST_WOF_Msk | SIO_FIFO_ST_ROE_Msk;
+
+	/* Run the launch state machine */
+	size_t idx = 0;
+	do {
+		/* Drain the fifo if the command is zero */
+		if (boot_cmds[idx] == 0) {
+
+			/* Empty is */
+			while ((SIO->FIFO_ST & SIO_FIFO_ST_VLD_Msk) != 0)
+				(void)(SIO->FIFO_RD);
+
+			/* CORE 1 might be waiting for room */
+			__SEV();
+		}
+
+		/* Send the command, is the loop really required? */
+		while ((SIO->FIFO_ST & SIO_FIFO_ST_RDY_Msk) == 0);
+		SIO->FIFO_WR = boot_cmds[idx];
+
+		/* Ensure the other core is aware */
+		__SEV();
+
+		/* Read the response, waiting to be woken up */
+		while ((SIO->FIFO_ST & SIO_FIFO_ST_VLD_Msk) == 0)
+			__WFE();
+
+		/* Start again if we got a crappy response */
+		if (SIO->FIFO_RD == boot_cmds[idx])
+			++idx;
+		else
+			idx = 0;
+
+	} while (idx < array_sizeof(boot_cmds));
+
+	/* Restore the interrupt state */
+	if (irq_state)
+		NVIC_EnableIRQ(SIO_IRQ_PROC0_IRQn);
+}
+
+__noreturn void SystemExitCore(void)
+{
+	void (*wait_for_vector)(void) = rom_func_lookup('W' | 'V' << 8);
+	wait_for_vector();
+}
+
+extern void __atomic_init(void);
+extern void __aeabi_mem_init(void);
+extern void __aeabi_bits_init(void);
+extern void __aeabi_float_init(void);
+extern void __aeabi_double_init(void);
+
+static void runtime_init(void)
+{
+	__atomic_init();
+	__aeabi_mem_init();
+	__aeabi_bits_init();
+	__aeabi_float_init();
+	__aeabi_double_init();
+}
+PREINIT_SYSINIT_WITH_PRIORITY(runtime_init, 005);
+

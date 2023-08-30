@@ -1,7 +1,7 @@
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <container-of.h>
+#include <sys/systick.h>
 
 #include <rtos/rtos-toolkit/rtos-toolkit.h>
 
@@ -28,21 +28,13 @@ __weak void _rtos2_release_timer(struct rtos_timer *timer)
 	_rtos2_release(timer);
 }
 
-void scheduler_tick_hook(unsigned long ticks)
-{
-	/* Forward to the CMSIS Timer tick handler */
-	osTimerTick(ticks);
-}
-
-osStatus_t osTimerTick(uint32_t ticks)
+void osTimerTick(uint32_t ticks)
 {
 	/* Work to do? */
 	while (!list_is_empty(&active_timers) && list_first_entry(&active_timers, struct rtos_timer, node)->target <= ticks) {
 
 		/* Pop the expired timer */
 		struct rtos_timer *expired = list_pop_entry(&active_timers, struct rtos_timer, node);
-		if (!expired)
-			return osError;
 
 		/* Post to timer execution thread */
 		osStatus_t os_status = osMessageQueuePut(timer_queue, &expired, 0, 0);
@@ -63,13 +55,10 @@ osStatus_t osTimerTick(uint32_t ticks)
 			list_insert_before(&current->node, &expired->node);
 		}
 
-		/* Wait for next tick if timer worker thead is full */
+		/* Wait for next tick if timer worker thread is full */
 		if (os_status == osErrorResource)
 			break;
 	}
-
-	/* Continue posting ticks */
-	return osOK;
 }
 
 static void osTimerThread(void *context)
@@ -116,17 +105,13 @@ osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, 
 	const osTimerAttr_t default_attr = { 0 };
 
 	/* Ensure the timer function is valid */
-	if (!func) {
-		errno = EINVAL;
+	if (!func)
 		return 0;
-	}
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
-	if (os_status != osOK) {
-		errno = EINVAL;
+	if (os_status != osOK)
 		return 0;
-	}
 
 	/* Check for attribute */
 	if (!attr)
@@ -138,10 +123,8 @@ osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, 
 		new_timer = _rtos2_alloc_timer();
 		if (!new_timer)
 			return 0;
-	} else if (attr->cb_size < sizeof(struct rtos_timer)) {
-		errno = EINVAL;
+	} else if (attr->cb_size < sizeof(struct rtos_timer))
 		return 0;
-	}
 
 	/* Initialize */
 	new_timer->marker = RTOS_TIMER_MARKER;
@@ -161,7 +144,6 @@ osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, 
 			_rtos2_release_timer(new_timer);
 
 		/* This only happen when the resource locking fails */
-		errno = EINVAL;
 		return 0;
 	}
 

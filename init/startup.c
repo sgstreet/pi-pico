@@ -33,6 +33,7 @@ extern void _exit(int status) __noreturn;
 extern void __assert_fail(const char *expr);
 extern void _init(void);
 extern void _fini(void);
+extern void _init_cls(void *cls);
 
 extern int main(int argc, char **argv);
 extern void _init_tls(void *__tls_block);
@@ -41,10 +42,9 @@ extern void _set_tls(void *tls);
 void _start(void);
 void abort(void);
 
+void *__cls_block = 0;
 char* __env[1] = { 0 };
 char** environ = __env;
-
-void *__tls_block = 0;
 
 __weak void __initialize_args(int *argc, char***argv)
 {
@@ -135,6 +135,30 @@ __weak void _set_tls(void *tls)
 {
 	__tls_block = tls;
 }
+
+void _init_cls(void *cls);
+__weak void _init_cls(void *cls)
+{
+
+	void *core = cls;
+	for (int i = 0; i < SystemNumCores; ++i) {
+		memcpy(core, (void *)&__core_data, (size_t)&__core_data_size);
+		core += (size_t)&__core_data_size;
+	}
+	__cls_block = cls;
+}
+
+void *__aeabi_read_cls(const void *datum);
+__weak __optimize void *__aeabi_read_cls(const void *datum)
+{
+	size_t core_data_size = (size_t)&__core_data_size;
+	const void * core_data = (const void *)&__core_data;
+	size_t core = SystemCurrentCore();
+	size_t core_offset =  core * core_data_size;
+	size_t datum_offset = datum - core_data;
+	return __cls_block + core_offset + datum_offset;
+}
+
 #endif
 
 __weak void _init(void)
@@ -170,15 +194,19 @@ __isr_section __noreturn __weak void _start(void)
 	int argc;
 	char **argv;
 
-	/* Execute the preinit array */
- 	run_init_array(__preinit_array_start, __preinit_array_end);
+ 	/* Initialize any core local data */
+ 	void *cls_block = alloca(SystemNumCores * (size_t)&__core_data_size);
+ 	_init_cls(cls_block);
 
  	/* Initialize the tls block */
-	__tls_block = alloca((size_t)&__tls_size);
+	void *__tls_block = alloca((size_t)&__tls_size);
  	_init_tls(__tls_block);
 
  	/* Bind the initial TLS block */
  	_set_tls(__tls_block);
+
+	/* Execute the preinit array */
+ 	run_init_array(__preinit_array_start, __preinit_array_end);
 
 	/* Setup the program arguments */
 	__initialize_args(&argc, &argv);

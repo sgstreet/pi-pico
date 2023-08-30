@@ -14,8 +14,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define HAL_NUM_PIO_MACHINES 8UL
-
 #define MACHINE_RXNEMPTY_Pos 0UL
 #define MACHINE_TNXFULL_Pos 4UL
 #define MACHINE_LOCAL_Pos 8UL

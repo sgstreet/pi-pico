@@ -1,7 +1,6 @@
 #ifndef _RTOS_TOOLKIT_CMSIS_OS2_H_
 #define _RTOS_TOOLKIT_CMSIS_OS2_H_
 
-#include <errno.h>
 #include <stdatomic.h>
 #include <compiler.h>
 #include <linked-list.h>
@@ -17,6 +16,7 @@
 #define RTOS_DEQUE_MARKER 0x42088024UL
 
 #define osDynamicAlloc 0x80000000U
+#define osReapThread 0x40000000UL
 
 #define RTOS_NAME_SIZE 32UL
 #define RTOS_DEFAULT_STACK_SIZE 512UL
@@ -29,8 +29,7 @@ typedef atomic_int osOnceFlag_t;
 typedef osOnceFlag_t *osOnceFlagId_t;
 typedef void (*osOnceFunc_t)(void);
 
-typedef struct linked_list osResourceNode;
-typedef void *osResourceNode_t;
+typedef struct linked_list *osResourceNode_t;
 typedef void *osResource_t;
 typedef osStatus_t (*osResouceNodeForEachFunc_t)(const osResource_t resource, void *context);
 
@@ -229,13 +228,19 @@ struct rtos_kernel
 
 	osKernelState_t state;
 	struct scheduler scheduler;
+
 	int32_t locked;
+
+	atomic_uint critical;
+	uint32_t critical_counter;
 
 	struct rtos_resource resources[osResourceLast];
 };
 
 extern struct rtos_kernel *rtos2_kernel;
 extern const size_t osThreadMinimumStackSize;
+
+extern uint32_t osKernelCurrentCore(void);
 
 osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDequeAttr_t *attr);
 const char *osDequeGetName(osDequeId_t dq_id);
@@ -250,53 +255,40 @@ uint32_t osDequeGetSpace(osDequeId_t dq_id);
 osStatus_t osDequeReset(osDequeId_t dq_id);
 osStatus_t osDequeDelete(osDequeId_t dq_id);
 
+void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func);
+
+uint32_t osKernelEnterCritical(void);
+void osKernelExitCritical(uint32_t state);
+
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node);
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node);
 bool osKernelResourceIsLocked(osResourceId_t resource_id);
 osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForEachFunc_t func, void *context);
 osStatus_t osKernelResourceDump(osResourceId_t resource_id);
-
-void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func);
-
-static inline __always_inline __optimize uint32_t osKernelEnterCritical(void)
-{
-	return scheduler_enter_critical();
-}
-
-static inline __always_inline __optimize void osKernelExitCritical(uint32_t state)
-{
-	return scheduler_exit_critical(state);
-}
+osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResourceNode_t node);
 
 static inline __always_inline __optimize osStatus_t osKernelContextIsValid(bool allowed, uint32_t timeout)
 {
 	if (allowed) {
 
-		if (__get_PRIMASK() != 0 && timeout != 0) {
-			errno = EINVAL;
+		if (__get_PRIMASK() != 0 && timeout != 0)
 			return osErrorParameter;
-		}
 
 		uint32_t irq = __get_IPSR();
 		if (irq == 0)
 			return osOK;
 
-		if (timeout != 0) {
-			errno = EINVAL;
+		if (timeout != 0)
 			return osErrorParameter;
-		}
 
-		if (NVIC_GetPriority(irq - 16) < SCHEDULER_MAX_IRQ_PRIORITY) {
-			errno = ENOTSUP;
+		uint32_t irq_priority = NVIC_GetPriority(irq - 16);
+		if (irq_priority < SCHEDULER_MAX_IRQ_PRIORITY)
 			return osErrorISR;
-		}
 
 		return osOK;
 
-	} else if (__get_PRIMASK() != 0 || __get_IPSR() != 0) {
-		errno = ENOTSUP;
+	} else if (__get_PRIMASK() != 0 || __get_IPSR() != 0)
 		return osErrorISR;
-	}
 
 	return osOK;
 }
@@ -304,31 +296,25 @@ static inline __always_inline __optimize osStatus_t osKernelContextIsValid(bool 
 static inline __always_inline __optimize osStatus_t osIsResourceValid(void *resource, uint32_t marker)
 {
 	osResourceId_t *resource_marker = resource;
-	if (!resource_marker) {
-		errno = EINVAL;
-		return osErrorParameter;
-	}
-
-	if (likely(*resource_marker == marker || *resource_marker == ~marker))
+	if (resource_marker != 0 && (*resource_marker == marker || *resource_marker == ~marker))
 		return osOK;
 
-	/* Corruption */
-	errno = EFAULT;
+	/* Caller error or corruption  */
 	return osErrorParameter;
 }
 
 static inline __always_inline __optimize uint32_t osSchedulerPriority(osPriority_t rtos2_priority)
 {
-	return SCHEDULER_MIN_TASK_PRIORITY - (rtos2_priority >> 1);
+	return SCHEDULER_MIN_TASK_PRIORITY - rtos2_priority;
 }
 
 static inline __always_inline __optimize osPriority_t osKernelPriority(uint32_t scheduler_priority)
 {
-	return 62 - (scheduler_priority << 1) ;
+	return SCHEDULER_MIN_TASK_PRIORITY - scheduler_priority;
 }
 
 osStatus_t osMemoryPoolIsBlockValid(osMemoryPoolId_t mp_id, void *block);
-osStatus_t osTimerTick(uint32_t ticks);
+void osTimerTick(uint32_t ticks);
 osStatus_t osMutexRobustRelease(osMutexId_t mutex_id, osThreadId_t owner);
 
 #endif

@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <container-of.h>
@@ -57,10 +56,8 @@ osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, cons
 	} else if (attr->cb_mem && attr->mq_mem) {
 
 		/* Make sure the size if reasonable */
-		if (attr->cb_size < sizeof(struct rtos_message_queue) || attr->mq_size < (sizeof(struct rtos_message) + msg_size) * msg_count)  {
-			errno = EINVAL;
+		if (attr->cb_size < sizeof(struct rtos_message_queue) || attr->mq_size < (sizeof(struct rtos_message) + msg_size) * msg_count)
 			return 0;
-		}
 
 		/* Initialize the pointers */
 		new_queue = attr->cb_mem;
@@ -68,10 +65,8 @@ osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, cons
 		pool_size = attr->mq_size;
 
 	/* Static memory allocation is all or nothing */
-	} else {
-		errno = EINVAL;
+	} else
 		return 0;
-	}
 
 	/* Initialize the remaining parts of the queue  */
 	new_queue->marker = RTOS_MESSAGE_QUEUE_MARKER;

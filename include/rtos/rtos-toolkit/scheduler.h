@@ -36,16 +36,24 @@
 #define SCHEDULER_WAIT_SVC 6
 #define SCHEDULER_WAKE_SVC 7
 #define SCHEDULER_PRIORITY_SVC 8
+#define SCHEDULER_FLAGS_SVC 9
 
+#ifndef SCHEDULER_PRIOR_BITS
 #define SCHEDULER_PRIOR_BITS 0x00000002UL
+#endif
 
-#define SCHEDULER_MAX_IRQ_PRIORITY INTERRUPT_ABOVE_NORMAL
-#define SCHEDULER_MIN_IRQ_PRIORITY INTERRUPT_BELOW_NORMAL
+#ifndef SCHEDULER_MAX_IRQ_PRIORITY
+#define SCHEDULER_MAX_IRQ_PRIORITY 1
+#endif
+
+#ifndef SCHEDULER_MIN_IRQ_PRIORITY
+#define SCHEDULER_MIN_IRQ_PRIORITY (SCHEDULER_PRIOR_BITS + 1)
+#endif
 
 #define SCHEDULER_PENDSV_PRIORITY (SCHEDULER_MIN_IRQ_PRIORITY)
 #define SCHEDULER_SVC_PRIORITY (SCHEDULER_MIN_IRQ_PRIORITY - 1)
 
-#define SCHEDULER_NUM_TASK_PRIORITIES 32UL
+#define SCHEDULER_NUM_TASK_PRIORITIES 64UL
 #define SCHEDULER_MAX_TASK_PRIORITY 0UL
 #define SCHEDULER_MIN_TASK_PRIORITY (SCHEDULER_NUM_TASK_PRIORITIES - 1)
 
@@ -55,6 +63,7 @@
 #define SCHEDULER_STACK_MARKER 0x137cc731UL
 
 #define SCHEDULER_WAIT_FOREVER 0xffffffffUL
+
 #define SCHEDULER_IGNORE_VIABLE 0x00000001UL
 #define SCHEDULER_TASK_STACK_CHECK 0x00000002UL
 
@@ -130,21 +139,16 @@ struct sched_queue
 
 enum task_state
 {
-	TASK_OTHER = -1,
-	TASK_TERMINATED = 0,
-	TASK_RUNNING = 1,
-	TASK_READY = 2,
-	TASK_BLOCKED = 3,
-	TASK_SLEEPING = 4,
-	TASK_SUSPENDED = 5,
+//	TASK_OTHER = -1,
+	TASK_PENDING_TERMINATE = 0,
+	TASK_TERMINATED = 1,
+	TASK_BLOCKED = 2,
+	TASK_PENDING_SUSPEND = 3,
+	TASK_SUSPENDED = 4,
+	TASK_READY = 5,
+	TASK_RUNNING = 6,
 	TASK_RESERVED = 0x7fffffff,
 };
-
-typedef union
-{
-	uint64_t jiffies;
-	uint32_t ticks[2];
-} counter64_t;
 
 struct task;
 typedef void (*task_entry_point_t)(void *context);
@@ -168,27 +172,26 @@ struct task
 	void *tls;
 	unsigned long *stack_marker;
 
-	enum task_state state;
+	volatile enum task_state state;
+	volatile int core;
 
 	unsigned long base_priority;
 	unsigned long current_priority;
-	atomic_int slice_expires;
 
-	counter64_t timer_expires;
+	unsigned long timer_expires;
 	struct sched_list timer_node;
+
+	struct sched_list scheduler_node;
+	struct sched_list owned_futexes;
 
 	struct sched_queue *current_queue;
 	struct sched_list queue_node;
 
-	struct sched_list scheduler_node;
-
-	struct sched_list owned_futexes;
-
 	void *context;
 	task_exit_handler_t exit_handler;
 	char name[TASK_NAME_LEN];
-	size_t stack_size;
-	atomic_ulong flags;
+//	size_t stack_size;
+	unsigned long flags;
 
 	unsigned long marker;
 };
@@ -204,51 +207,45 @@ struct futex
 
 struct scheduler
 {
-	/* Must be the first field the scheduler start service depends on it */
-	struct scheduler_frame *initial_frame;
-
 	size_t tls_size;
 	unsigned long slice_duration;
 
 	struct sched_queue ready_queue;
 	struct sched_queue suspended_queue;
-	struct sched_queue sleep_queue;
 
 	struct sched_list tasks;
 	struct sched_list timers;
-	volatile counter64_t timer_expires;
+	volatile unsigned long timer_expires;
 
 	atomic_int locked;
-	volatile counter64_t time;
+	volatile unsigned long ticks;
 
 	unsigned long deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
 
+	atomic_int active_cores;
+
 	unsigned long marker;
-
-	struct task *current;
 };
-
-static inline __always_inline unsigned long scheduler_enter_critical(void)
-{
-	return disable_interrupts();
-}
-
-static inline __always_inline void scheduler_exit_critical(unsigned long status)
-{
-	enable_interrupts(status);
-}
 
 int scheduler_init(struct scheduler *new_scheduler, size_t tls_size);
 int scheduler_run(void);
 bool scheduler_is_running(void);
 void scheduler_for_each(struct sched_list *list, for_each_sched_node_t func, void *context);
 
-unsigned long long scheduler_jiffies(void);
-unsigned long scheduler_ticks(void);
+unsigned long scheduler_num_cores(void);
+unsigned long scheduler_current_core(void);
+void scheduler_request_switch(unsigned long core);
+
+unsigned long scheduler_timer_tick(void);
+void scheduler_core_tick(void);
+
+unsigned long scheduler_get_ticks(void);
 
 struct task *scheduler_create(void *stack, size_t stack_size, const struct task_descriptor *descriptor);
 struct task *scheduler_task(void);
 
+unsigned long scheduler_enter_critical(void);
+void scheduler_exit_critical(unsigned long state);
 int scheduler_lock(void);
 int scheduler_unlock(void);
 int scheduler_lock_restore(int lock);

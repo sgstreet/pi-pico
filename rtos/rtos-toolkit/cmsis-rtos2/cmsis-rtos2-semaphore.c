@@ -40,10 +40,8 @@ osSemaphoreId_t osSemaphoreNew(uint32_t max_count, uint32_t initial_count, const
 		new_semaphore = _rtos2_alloc_semaphore();
 		if (!new_semaphore)
 			return 0;
-	} else if (attr->cb_size < sizeof(struct rtos_semaphore)) {
-		errno = EINVAL;
+	} else if (attr->cb_size < sizeof(struct rtos_semaphore))
 		return 0;
-	}
 
 	/* Initialize */
 	new_semaphore->marker = RTOS_SEMAPHORE_MARKER;

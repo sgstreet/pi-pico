@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 Red Rocket Computing, LLC
+# Copyright (C) 2023 Red Rocket Computing, LLC
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,13 +7,11 @@
 #
 # subdir.mk
 #
-# Created on: Mar 16, 2017
+# Created on: August 3, 2023
 #     Author: Stephen Street (stephen@redrocketcomputing.com)
 #
 
 where-am-i := $(lastword ${MAKEFILE_LIST})
 
-SRC += $(wildcard $(dir $(where-am-i))*.cpp)
-SRC += $(wildcard $(dir $(where-am-i))*.c)
-SRC += $(wildcard $(dir $(where-am-i))*.S)
-SRC += $(wildcard $(dir $(where-am-i))*.s)
+SRC += $(dir $(where-am-i))system-rp2040.c
+SRC += $(dir $(where-am-i))irq-vector-smp.S

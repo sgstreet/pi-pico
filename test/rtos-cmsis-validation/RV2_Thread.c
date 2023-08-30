@@ -1794,6 +1794,7 @@ void TC_ThreadNew (void) {
   uint32_t arg = 0xFF;
 
   Var_ThreadExec = 0;
+  __unused osThreadId_t main_id = osThreadGetId();
 
   /* - Create threads with different priorities and pass NULL argument to them */
   ASSERT_TRUE (osKernelLock() == 0U);

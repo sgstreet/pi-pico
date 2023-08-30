@@ -235,6 +235,20 @@ SECTIONS
 	__end__ = LOADADDR(.data) + SIZEOF(.data);
 	__data_size = __data_end__ - __data_start__;
 
+	.core_data :
+	{
+		FILL(0x00)
+		. = ALIGN(4);
+		__core_data_start__ = .;
+		
+		KEEP(*(.core_data .core_data.*))
+		
+		__core_data_end__ = .;
+		. = ALIGN(4);
+	} > RODATA
+	__core_data = LOADADDR(.core_data);
+	__core_data_size = SIZEOF(.core_data);
+	
 	.tdata :
 	{
 		. = ALIGN(4);

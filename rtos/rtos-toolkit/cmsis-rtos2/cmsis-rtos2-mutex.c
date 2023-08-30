@@ -40,10 +40,8 @@ osMutexId_t osMutexNew(const osMutexAttr_t *attr)
 		new_mutex = _rtos2_alloc_mutex();
 		if (!new_mutex)
 			return 0;
-	} else if (attr->cb_size < sizeof(struct rtos_mutex)) {
-		errno = EINVAL;
+	} else if (attr->cb_size < sizeof(struct rtos_mutex))
 		return 0;
-	}
 
 	/* Initialize */
 	new_mutex->marker = RTOS_MUTEX_MARKER;
@@ -101,31 +99,31 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
 	/* Handle recursive locks */
 	long value = (long)scheduler_task();
 	if (value == (mutex->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING)) {
-		if ((mutex->attr_bits & osMutexRecursive) == 0) {
-			errno = EINVAL;
+		if ((mutex->attr_bits & osMutexRecursive) == 0)
 			return osErrorParameter;
-		}
 		++mutex->count;
 		return osOK;
 	}
 
 	/* Run the lock algo */
 	long expected = 0;
-	if (!atomic_compare_exchange_strong(&mutex->value, &expected, value)) {
+	while (!atomic_compare_exchange_strong(&mutex->value, &expected, value)) {
 
 		/* Try sematics? */
-		if (timeout == 0) {
-			errno = EBUSY;
+		if (timeout == 0)
 			return osErrorResource;
-		}
 
 		/* Nope wait for the lock */
 		int status = scheduler_futex_wait(&mutex->futex, expected, timeout);
-		if (status < 0) {
-			errno = -status;
+		if (status < 0)
 			return status == -ETIMEDOUT ? osErrorTimeout : osError;
-		}
-		assert(value == (mutex->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING));
+
+		/* We have requested contention tracking, we might own the mutex now */
+		if (value == (mutex->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING))
+			break;
+
+		/* No we did not end up ownership, try again */
+		expected = 0;
 	}
 
 	/* Initialize the count for recursive locks */
@@ -150,10 +148,8 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
 	struct rtos_mutex *mutex = mutex_id;
 
 	/* Make sure we are the locker */
-	if (osMutexGetOwner(mutex_id) != osThreadGetId()) {
-		errno = EINVAL;
+	if (osMutexGetOwner(mutex_id) != osThreadGetId())
 		return osErrorResource;
-	}
 
 	/* Handle recursive lock */
 	if ((mutex->attr_bits & osMutexRecursive) && --mutex->count > 0)
@@ -166,10 +162,8 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
 
 	/* Must have been contended */
 	int status = scheduler_futex_wake(&mutex->futex, false);
-	if (status < 0) {
-		errno = -status;
+	if (status < 0)
 		return osError;
-	}
 
 	/* All good */
 	return osOK;
@@ -195,10 +189,8 @@ osStatus_t osMutexRobustRelease(osMutexId_t mutex_id, osThreadId_t owner)
 	struct rtos_thread *thread = owner;
 
 	/* Make sure we are the locker */
-	if (osMutexGetOwner(mutex_id) != owner) {
-		errno = EINVAL;
+	if (osMutexGetOwner(mutex_id) != owner)
 		return osErrorResource;
-	}
 
 	/* Handle recursive lock */
 	if ((mutex->attr_bits & osMutexRecursive) && --mutex->count > 0)
@@ -211,10 +203,8 @@ osStatus_t osMutexRobustRelease(osMutexId_t mutex_id, osThreadId_t owner)
 
 	/* Must have been contended */
 	int status = scheduler_futex_wake(&mutex->futex, false);
-	if (status < 0) {
-		errno = -status;
+	if (status < 0)
 		return osError;
-	}
 
 	/* All good */
 	return osOK;
@@ -234,11 +224,12 @@ osThreadId_t osMutexGetOwner(osMutexId_t mutex_id)
 	struct rtos_mutex *mutex = mutex_id;
 
 	/* Is it locked? */
-	if (mutex->value == 0)
+	long value = mutex->value;
+	if (value == 0)
 		return 0;
 
 	/* Extract and validate the task */
-	struct task *task = (struct task*)(mutex->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING);
+	struct task *task = (struct task*)(value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING);
 	if (task->marker != SCHEDULER_TASK_MARKER)
 		abort();
 

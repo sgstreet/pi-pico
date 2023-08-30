@@ -7,9 +7,11 @@
 #include <cmsis/cmsis.h>
 
 #define HAL_NUM_LOCKS 32UL
+#define HAL_NUM_PIO_MACHINES 8UL
 
 #include <hal/rp2040/hal-rp2040-dma.h>
 #include <hal/rp2040/hal-rp2040-pio.h>
 #include <hal/rp2040/hal-rp2040-pwm.h>
+#include <hal/rp2040/hal-rp2040-multicore.h>
 
 #endif

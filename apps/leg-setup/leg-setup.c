@@ -15,6 +15,11 @@
 
 #include <sys/fault.h>
 #include <sys/syslog.h>
+#include <sys/delay.h>
+
+#include <hal/hal.h>
+
+#include <board/board.h>
 
 #include <rtos/rtos.h>
 
@@ -24,7 +29,7 @@
 
 #define NUM_LEGS 1
 
-static osThreadId_t main_id = 0;
+osThreadId_t main_id = 0;
 
 static int exit_cmd(int argc, char **argv)
 {
@@ -64,20 +69,10 @@ __noreturn void __assert_fail(const char *expr)
 
 int main(int argc, char **argv)
 {
-	float a = M_PI;
-	float b = 4096.0;
-	float scale = a / b;
-	unsigned int test_bits = 0x0fff;
-	unsigned int lz = __builtin_clz(test_bits);
-	int64_t a64 = 10;
-	int64_t b64 = 42398462;
-	int64_t c64 = a64 * b64;
-
 	/* Wait for exit */
-	syslog_info("waiting for exit: %f, lz: %u %lld\n", scale, lz, c64);
+	syslog_info("waiting for exit\n");
 	main_id = osThreadGetId();
 	osThreadFlagsWait(0x7fffffff, osFlagsWaitAny, osWaitForever);
-
 	syslog_info("main exiting\n");
 
 	return EXIT_SUCCESS;

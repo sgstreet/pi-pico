@@ -163,4 +163,7 @@ LDFLAGS += -Wl,--wrap=__aeabi_memset4
 LDFLAGS += -Wl,--wrap=__aeabi_memcpy8
 LDFLAGS += -Wl,--wrap=__aeabi_memset8
 
-
+# Add tls wrapper to multicore tls
+LDFLAGS += -Wl,--wrap=__aeabi_read_tp
+LDFLAGS += -Wl,--wrap=_set_tls
+LDFLAGS += -Wl,--wrap=_init_tls

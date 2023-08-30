@@ -107,10 +107,10 @@ declare_function SVC_Handler, .isr
 	mov r1, lr
 	tst r0, r1               /* Test EXEC_RETURN for used stack */
 	bne 0f
-	mrs r1, msp              /* Move the main stack poiner to R0 */
+	mrs r1, msp              /* Move the main stack poiner to R1 */
 	b 1f
 0:
-	mrs r1, psp              /* Move the process stack pointer to R0 */
+	mrs r1, psp              /* Move the process stack pointer to R1 */
 1:
 
 	/* Load the service number into r0 */

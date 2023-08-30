@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <container-of.h>
@@ -68,20 +67,16 @@ osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDe
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
-	if (os_status != osOK) {
-		errno = EINVAL;
+	if (os_status != osOK)
 		return 0;
-	}
 
 	/* Check for attribute */
 	if (!attr)
 		attr = &default_attr;
 
 	/* Are implementation require that the element count be a power of two */
-	if (modulo(element_size, element_size) != 0) {
-		errno = EINVAL;
+	if (modulo(element_size, element_size) != 0)
 		return 0;
-	}
 
 	/* Setup the thread memory */
 	struct rtos_deque *new_deque = 0;
@@ -101,20 +96,16 @@ osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDe
 	} else if (attr->cb_mem && attr->dq_mem) {
 
 		/* Make sure the stack size if reasonable */
-		if (attr->cb_size < sizeof(struct rtos_deque) || attr->dq_size < sizeof(struct rtos_message) + (element_size * element_count))  {
-			errno = EINVAL;
+		if (attr->cb_size < sizeof(struct rtos_deque) || attr->dq_size < sizeof(struct rtos_message) + (element_size * element_count))
 			return 0;
-		}
 
 		/* Initialize the pointers */
 		new_deque = attr->cb_mem;
 		deque_data = attr->dq_mem;
 
 	/* Static memory allocation is all or nothing */
-	} else {
-		errno = EINVAL;
+	} else
 		return 0;
-	}
 
 	/* Initialize the remaining parts of the queue  */
 	new_deque->marker = RTOS_DEQUE_MARKER;
@@ -185,10 +176,8 @@ osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t time
 	/* Check for reset in progress */
 	uint32_t flags = osEventFlagsGet(&deque->events);
 	if (flags & (RTOS_DEQUE_RESET | osFlagsError)) {
-		if (flags & RTOS_DEQUE_RESET) {
-			errno = EAGAIN;
+		if (flags & RTOS_DEQUE_RESET)
 			return osErrorResource;
-		}
 		return (osStatus_t)flags;
 	}
 
@@ -219,7 +208,6 @@ osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t time
 		/* Is a reset in progress */
 		if (flags & RTOS_DEQUE_RESET) {
 			--deque->waiters;
-			errno = EAGAIN;
 			return osErrorResource;
 		}
 
@@ -268,10 +256,8 @@ osStatus_t osDequePutBack(osDequeId_t dq_id, const void *element, uint32_t timeo
 	/* Check for reset in progress */
 	uint32_t flags = osEventFlagsGet(&deque->events);
 	if (flags & (RTOS_DEQUE_RESET | osFlagsError)) {
-		if (flags & RTOS_DEQUE_RESET) {
-			errno = EAGAIN;
+		if (flags & RTOS_DEQUE_RESET)
 			return osErrorResource;
-		}
 		return (osStatus_t)flags;
 	}
 
@@ -302,7 +288,6 @@ osStatus_t osDequePutBack(osDequeId_t dq_id, const void *element, uint32_t timeo
 		/* Is a reset in progress */
 		if (flags & RTOS_DEQUE_RESET) {
 			--deque->waiters;
-			errno = EAGAIN;
 			return osErrorResource;
 		}
 
@@ -351,10 +336,8 @@ osStatus_t osDequeGetFront(osDequeId_t dq_id, void *element, uint32_t timeout)
 	/* Check for reset in progress */
 	uint32_t flags = osEventFlagsGet(&deque->events);
 	if (flags & (RTOS_DEQUE_RESET | osFlagsError)) {
-		if (flags & RTOS_DEQUE_RESET) {
-			errno = EAGAIN;
+		if (flags & RTOS_DEQUE_RESET)
 			return osErrorResource;
-		}
 		return (osStatus_t)flags;
 	}
 
@@ -385,7 +368,6 @@ osStatus_t osDequeGetFront(osDequeId_t dq_id, void *element, uint32_t timeout)
 		/* Is a reset in progress */
 		if (flags & RTOS_DEQUE_RESET) {
 			--deque->waiters;
-			errno = EAGAIN;
 			return osErrorResource;
 		}
 
@@ -434,10 +416,8 @@ osStatus_t osDequeGetBack(osDequeId_t dq_id, void *element, uint32_t timeout)
 	/* Check for reset in progress */
 	uint32_t flags = osEventFlagsGet(&deque->events);
 	if (flags & (RTOS_DEQUE_RESET | osFlagsError)) {
-		if (flags & RTOS_DEQUE_RESET) {
-			errno = EAGAIN;
+		if (flags & RTOS_DEQUE_RESET)
 			return osErrorResource;
-		}
 		return (osStatus_t)flags;
 	}
 
@@ -468,7 +448,6 @@ osStatus_t osDequeGetBack(osDequeId_t dq_id, void *element, uint32_t timeout)
 		/* Is a reset in progress */
 		if (flags & RTOS_DEQUE_RESET) {
 			--deque->waiters;
-			errno = EAGAIN;
 			return osErrorResource;
 		}
 

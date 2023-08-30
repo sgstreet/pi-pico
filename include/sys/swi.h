@@ -17,4 +17,6 @@ bool swi_is_enabled(unsigned int swi);
 
 void swi_trigger(unsigned int swi);
 
+void swi_init(void);
+
 #endif

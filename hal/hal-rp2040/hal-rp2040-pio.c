@@ -113,10 +113,10 @@ void hal_pio_enable_irq(uint32_t machine, uint32_t source)
 	PIO0_Type *pio = machine_to_pio(machine);
 	if (SIO->CPUID) {
 		core1_handlers[machine].mask = source & 0x00000fff;
-		hw_set_alias(pio->IRQ1_INTE) = source & 0x00000fff;
+		HW_SET_ALIAS(pio->IRQ1_INTE) = source & 0x00000fff;
 	} else {
 		core0_handlers[machine].mask = source & 0x00000fff;
-		hw_set_alias(pio->IRQ0_INTE) = source & 0x00000fff;
+		HW_SET_ALIAS(pio->IRQ0_INTE) = source & 0x00000fff;
 	}
 }
 
@@ -126,10 +126,10 @@ void hal_pio_disable_irq(uint32_t machine, uint32_t source)
 
 	PIO0_Type *pio = machine_to_pio(machine);
 	if (SIO->CPUID) {
-		hw_clear_alias(pio->IRQ1_INTE) = source & 0x00000fff;
+		HW_CLEAR_ALIAS(pio->IRQ1_INTE) = source & 0x00000fff;
 		core1_handlers[machine].mask = source & 0x00000fff;
 	} else {
-		hw_clear_alias(pio->IRQ0_INTE) = source & 0x00000fff;
+		HW_CLEAR_ALIAS(pio->IRQ0_INTE) = source & 0x00000fff;
 		core0_handlers[machine].mask = source & 0x00000fff;
 	}
 }
@@ -139,7 +139,7 @@ void hal_pio_clear_irq(uint32_t machine, uint32_t source)
 	assert(machine < HAL_NUM_PIO_MACHINES);
 
 	PIO0_Type *pio = machine_to_pio(machine);
-	hw_clear_alias(pio->IRQ) = ((source & 0x00000fff) >> PIO0_IRQ0_INTS_SM0_Pos);
+	HW_CLEAR_ALIAS(pio->IRQ) = ((source & 0x00000fff) >> PIO0_IRQ0_INTS_SM0_Pos);
 }
 
 void hal_pio_machine_enable(uint32_t machine)
@@ -147,7 +147,7 @@ void hal_pio_machine_enable(uint32_t machine)
 	assert(machine < HAL_NUM_PIO_MACHINES);
 
 	PIO0_Type *pio = machine_to_pio(machine);
-	hw_set_alias(pio->CTRL) = (1UL << machine);
+	HW_SET_ALIAS(pio->CTRL) = (1UL << machine);
 }
 
 void hal_pio_machine_disable(uint32_t machine)
@@ -155,7 +155,7 @@ void hal_pio_machine_disable(uint32_t machine)
 	assert(machine < HAL_NUM_PIO_MACHINES);
 
 	PIO0_Type *pio = machine_to_pio(machine);
-	hw_clear_alias(pio->CTRL) = (1UL << machine);
+	HW_CLEAR_ALIAS(pio->CTRL) = (1UL << machine);
 }
 
 bool hal_pio_machine_is_enabled(uint32_t machine)
@@ -239,13 +239,13 @@ void hal_pio_clear_sticky(uint32_t machine, uint32_t mask)
 static void hal_pio_init(void)
 {
 	if (SIO->CPUID) {
-		irq_register(PIO0_IRQ_1_IRQn, INTERRUPT_ABOVE_NORMAL, pio_irq_handler, core1_handlers);
-		irq_register(PIO1_IRQ_1_IRQn, INTERRUPT_ABOVE_NORMAL, pio_irq_handler, core1_handlers);
+		irq_register(PIO0_IRQ_1_IRQn, INTERRUPT_NORMAL, pio_irq_handler, core1_handlers);
+		irq_register(PIO1_IRQ_1_IRQn, INTERRUPT_NORMAL, pio_irq_handler, core1_handlers);
 		irq_enable(PIO0_IRQ_1_IRQn);
 		irq_enable(PIO1_IRQ_1_IRQn);
 	} else {
-		irq_register(PIO0_IRQ_0_IRQn, INTERRUPT_ABOVE_NORMAL, pio_irq_handler, core0_handlers);
-		irq_register(PIO1_IRQ_0_IRQn, INTERRUPT_ABOVE_NORMAL, pio_irq_handler, core0_handlers);
+		irq_register(PIO0_IRQ_0_IRQn, INTERRUPT_NORMAL, pio_irq_handler, core0_handlers);
+		irq_register(PIO1_IRQ_0_IRQn, INTERRUPT_NORMAL, pio_irq_handler, core0_handlers);
 		irq_enable(PIO0_IRQ_0_IRQn);
 		irq_enable(PIO1_IRQ_0_IRQn);
 	}

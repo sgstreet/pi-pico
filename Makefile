@@ -34,8 +34,7 @@ include ${TOOLS_ROOT}/makefiles/tree.mk
 SUBDIRS := $(filter-out, host-tools, ${SUBDIRS})
 
 init board diag cmsis sys bootstrap lib hal rtos: runtime
-test: init board diag cmsis sys bootstrap lib hal rtos
-apps: init board diag cmsis sys bootstrap lib hal rtos
+apps test: init board diag cmsis sys bootstrap lib hal rtos
 target: test apps
 
 endif

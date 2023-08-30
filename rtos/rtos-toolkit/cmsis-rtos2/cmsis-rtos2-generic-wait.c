@@ -1,4 +1,4 @@
-#include <errno.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -44,7 +44,7 @@ osStatus_t osDelayUntil (uint32_t ticks)
 		return os_status;
 
 	/* Get calculate the number of ticks to sleep */
-	uint32_t msecs = ticks - (scheduler_jiffies() & 0xffffffffUL);
+	uint32_t msecs = ticks - scheduler_get_ticks();
 
 	/* Forward, tick and msec are treated the same */
 	int status = scheduler_sleep(msecs);

@@ -5,6 +5,7 @@
  *      Author: Stephen Street (stephen@redrocketcomputing.com)
  */
 
+#include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>

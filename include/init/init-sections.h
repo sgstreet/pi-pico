@@ -77,6 +77,9 @@ extern void *__tls_align;
 extern void *__arm32_tls_tcb_offset;
 extern void *__arm64_tls_tcb_offset;
 
+extern void *__core_data;
+extern void *__core_data_size;
+
 static inline void run_init_array(void (*start[])(void), void (*end[])(void))
 {
 	for (int i = 0; i < end - start; i++)

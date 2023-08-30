@@ -18,10 +18,22 @@ extern "C" {
 #define RP2040_NUM_CLOCKS (RP2040_CLOCK_RTC + 1)
 
 extern uint32_t SystemCoreClock;
+extern const uint32_t SystemNumCores;
+
 extern uint32_t rp2040_clocks[RP2040_NUM_CLOCKS];
+extern volatile uint32_t *const system_current_core;
 
 extern void SystemInit(void);
 extern void SystemCoreClockUpdate(void);
+
+extern void SystemResetCore(uint32_t core);
+extern void SystemLaunchCore(uint32_t core, uintptr_t vector_table, uintptr_t stack_pointer, void (*entry_point)(void));
+extern __attribute__((noreturn)) void SystemExitCore(void);
+
+static inline uint32_t SystemCurrentCore(void)
+{
+	return *system_current_core;
+}
 
 #ifdef __cplusplus
 }

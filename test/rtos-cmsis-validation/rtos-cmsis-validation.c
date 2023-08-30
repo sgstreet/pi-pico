@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/fault.h>
 #include <diag/diag.h>
 
@@ -18,11 +19,17 @@ int stdout_putchar(int c)
 
 void *_rtos2_alloc(size_t size)
 {
-	return calloc(1, size);
+	void *ptr = malloc(size);
+	if (!ptr)
+		abort();
+	memset(ptr, -1, size);
+	return ptr;
 }
 
 void _rtos2_release(void *ptr)
 {
+	if (!ptr)
+		abort();
 	free(ptr);
 }
 

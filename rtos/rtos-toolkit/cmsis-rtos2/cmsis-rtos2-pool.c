@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <container-of.h>
@@ -31,10 +30,8 @@ osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, con
 		return 0;
 
 	/* Fail if the block size is not at multiple of 8 bytes, this will aligned access for 32 bit integers */
-	if (block_size != ((block_size + 3) & ~3)) {
-		errno = EINVAL;
+	if (block_size != ((block_size + 3) & ~3))
 		return 0;
-	}
 
 	/* Check for attribute */
 	if (!attr)
@@ -56,19 +53,16 @@ osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, con
 	/* Static allocation */
 	} else if (attr->cb_mem && attr->mp_mem) {
 
-		if (attr->cb_size < sizeof(struct rtos_memory_pool) || attr->mp_size < block_size * block_count)  {
-			errno = EINVAL;
+		if (attr->cb_size < sizeof(struct rtos_memory_pool) || attr->mp_size < block_size * block_count)
 			return 0;
-		}
+
 		/* Initialize the pointers */
 		new_pool = attr->cb_mem;
 		new_pool->pool_data = attr->mp_mem;
 
 	/* Static memory allocation is all or nothing */
-	} else {
-		errno = EINVAL;
+	} else
 		return 0;
-	}
 
 	/* Initialize the control block */
 	new_pool->marker = RTOS_MEMORY_POOL_MARKER;
@@ -136,10 +130,8 @@ void *osMemoryPoolAlloc (osMemoryPoolId_t mp_id, uint32_t timeout)
 
 	/* Acquire a token from the semaphore */
 	os_status = osSemaphoreAcquire(&pool->pool_semaphore, timeout);
-	if (os_status != osOK) {
-		errno = ENOMEM;
+	if (os_status != osOK)
 		return 0;
-	}
 
 	/* There must be a block available, get it */
 	uint32_t state = osKernelEnterCritical();

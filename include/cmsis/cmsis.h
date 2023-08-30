@@ -14,9 +14,39 @@
 #define REG_ALIAS_SET_BITS (0x2u << 12u)
 #define REG_ALIAS_CLR_BITS (0x3u << 12u)
 
-#define hw_set_alias(addr) (*((volatile uint32_t *)(REG_ALIAS_SET_BITS | ((uintptr_t)(&addr)))))
-#define hw_clear_alias(addr) (*((volatile uint32_t *)(REG_ALIAS_CLR_BITS | ((uintptr_t)(&addr)))))
-#define hw_xor_alias(addr) (*((volatile uint32_t *)(REG_ALIAS_XOR_BITS | ((uintptr_t)(&addr)))))
+#define HW_SET_ALIAS(addr) (*((volatile uint32_t *)(REG_ALIAS_SET_BITS | ((uintptr_t)(&addr)))))
+#define HW_CLEAR_ALIAS(addr) (*((volatile uint32_t *)(REG_ALIAS_CLR_BITS | ((uintptr_t)(&addr)))))
+#define HW_XOR_ALIAS(addr) (*((volatile uint32_t *)(REG_ALIAS_XOR_BITS | ((uintptr_t)(&addr)))))
+
+static __always_inline inline void set_bit(volatile void *addr, uint32_t bit)
+{
+	volatile uint32_t *alias = (volatile uint32_t *)(REG_ALIAS_SET_BITS | ((uintptr_t)addr));
+	*alias = (1UL << bit);
+}
+
+static __always_inline inline void set_mask(volatile void *addr, uint32_t mask)
+{
+	volatile uint32_t *alias = (volatile uint32_t *)(REG_ALIAS_SET_BITS | ((uintptr_t)addr));
+	*alias = mask;
+}
+
+static __always_inline inline void clear_bit(volatile void *addr, uint32_t bit)
+{
+	volatile uint32_t *alias = (volatile uint32_t *)(REG_ALIAS_CLR_BITS | ((uintptr_t)addr));
+	*alias = (1UL << bit);
+}
+
+static __always_inline inline void clear_mask(volatile void *addr, uint32_t mask)
+{
+	volatile uint32_t *alias = (volatile uint32_t *)(REG_ALIAS_CLR_BITS | ((uintptr_t)addr));
+	*alias = mask;
+}
+
+static __always_inline inline void xor_bit(volatile void *addr, uint32_t bit)
+{
+	volatile uint32_t *alias = (volatile uint32_t *)(REG_ALIAS_XOR_BITS | ((uintptr_t)addr));
+	*alias = (1UL << bit);
+}
 
 static __always_inline inline uint32_t disable_interrupts(void)
 {

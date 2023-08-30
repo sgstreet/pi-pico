@@ -40,16 +40,15 @@ osEventFlagsId_t osEventFlagsNew(const osEventFlagsAttr_t *attr)
 		new_eventflags = _rtos2_alloc_eventflags();
 		if (!new_eventflags)
 			return 0;
-	} else if (attr->cb_size < sizeof(struct rtos_eventflags)) {
-		errno = EINVAL;
+	} else if (attr->cb_size < sizeof(struct rtos_eventflags))
 		return 0;
-	}
 
 	/* Initialize */
 	new_eventflags->marker = RTOS_EVENTFLAGS_MARKER;
 	new_eventflags->name = attr->name;
 	new_eventflags->attr_bits = attr->attr_bits | (new_eventflags != attr->cb_mem ? osDynamicAlloc : 0);
 	new_eventflags->flags = 0;
+	new_eventflags->waiters = 0;
 	scheduler_futex_init(&new_eventflags->futex, (long *)&new_eventflags->flags, 0);
 	list_init(&new_eventflags->resource_node);
 
@@ -136,10 +135,8 @@ uint32_t osEventFlagsGet(osEventFlagsId_t ef_id)
 uint32_t osEventFlagsWait(osEventFlagsId_t ef_id, uint32_t flags, uint32_t options, uint32_t timeout)
 {
 	/* Range check the input flags */
-	if (flags & osFlagsError) {
-		errno = EINVAL;
+	if (flags & osFlagsError)
 		return osFlagsErrorParameter;
-	}
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(true, timeout);
@@ -177,7 +174,6 @@ uint32_t osEventFlagsWait(osEventFlagsId_t ef_id, uint32_t flags, uint32_t optio
 		/* Try sematics? */
 		if (timeout == 0) {
 			--eventflags->waiters;
-			errno = EAGAIN;
 			return osFlagsErrorResource;
 		}
 
