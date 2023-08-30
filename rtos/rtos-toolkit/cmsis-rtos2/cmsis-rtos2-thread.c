@@ -365,8 +365,6 @@ osThreadState_t osThreadGetState(osThreadId_t thread_id)
 		case TASK_TERMINATED:
 			return osThreadTerminated;
 
-		case TASK_PENDING_TERMINATE:
-		case TASK_PENDING_SUSPEND:
 		case TASK_RUNNING:
 			return osThreadRunning;
 

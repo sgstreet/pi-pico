@@ -416,22 +416,31 @@ __fast_section __optimize void scheduler_core_tick(void)
 	scheduler_tick_hook(ticks);
 }
 
+static bool scheduler_check_context_switch(void)
+{
+	struct task* current = sched_get_current();
+	assert(current == 0 || current->marker == SCHEDULER_TASK_MARKER);
+	if (current != 0 && current->state != TASK_RUNNING) {
+		scheduler_request_switch(scheduler_current_core());
+		return true;
+	}
+
+	/* Sort of backwards, everything is ok */
+	return false;
+}
+
 void scheduler_create_svc(uint32_t svc, struct exception_frame *frame)
 {
-	static int cnt = 0;
 	assert(frame->r0 != 0 && scheduler != 0);
 
 	struct task *task = (struct task *)frame->r0;
 
 	scheduler_spin_lock();
 
-	++cnt;
-
 	assert(task->marker == SCHEDULER_TASK_MARKER);
 
 	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
-	if (sched_get_current() != 0 && sched_get_current()->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -460,10 +469,14 @@ SCHEDULER_DECLARE_SVC(SCHEDULER_YIELD_SVC, scheduler_yield_svc);
 
 static int scheduler_task_alive(const struct task *task)
 {
-	struct sched_list *current = 0;
-	sched_list_for_each(current , &scheduler->tasks)
-		if (&task->scheduler_node == current)
-			return 0;
+	if (task != 0) {
+		struct sched_list *current = 0;
+		sched_list_for_each(current , &scheduler->tasks)
+			if (&task->scheduler_node == current)
+				return 0;
+	}
+
+	/* Not alive */
 	return -ESRCH;
 }
 
@@ -476,9 +489,8 @@ void scheduler_suspend_svc(uint32_t svc, struct exception_frame *frame)
 	/* Close the dog house door */
 	scheduler_spin_lock();
 
-	/* Is someone trying to terminate or suspend us? */
-	if (sched_get_current()->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -489,14 +501,12 @@ void scheduler_suspend_svc(uint32_t svc, struct exception_frame *frame)
 		scheduler_spin_unlock();
 		return;
 	}
-	assert(task->marker == SCHEDULER_TASK_MARKER);
+
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
 
 	/* The task is running the update the core to kick */
-	if (task->state == TASK_RUNNING) {
+	if (task->state == TASK_RUNNING)
 		core = task->core;
-		task->state = TASK_PENDING_SUSPEND;
-	} else
-		task->state = TASK_SUSPENDED;
 
 	/* What sleep requested was requested? If so add a timer */
 	if (ticks < SCHEDULER_WAIT_FOREVER)
@@ -506,6 +516,7 @@ void scheduler_suspend_svc(uint32_t svc, struct exception_frame *frame)
 	sched_queue_remove(task);
 
 	/* Add ourselves to the suspend queue */
+	task->state = TASK_SUSPENDED;
 	sched_queue_push(&scheduler->suspended_queue, task);
 
 	/* For the context switch if the task was running */
@@ -527,8 +538,7 @@ void scheduler_resume_svc(uint32_t svc, struct exception_frame *frame)
 	scheduler_spin_lock();
 
 	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
-	if (sched_get_current()->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -539,7 +549,8 @@ void scheduler_resume_svc(uint32_t svc, struct exception_frame *frame)
 		scheduler_spin_unlock();
 		return;
 	}
-	assert(task->marker == SCHEDULER_TASK_MARKER);
+
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
 
 	/* Wake up suspended, sleeping and blocked tasks only */
 	enum task_state state = task->state;
@@ -554,10 +565,8 @@ void scheduler_resume_svc(uint32_t svc, struct exception_frame *frame)
 		/* Clear the return so we can indicate no timeout */
 		task->psp->r0 = 0;
 
-		/* Mark as ready */
-		task->state = TASK_READY;
-
 		/* Push on the ready queue */
+		task->state = TASK_READY;
 		sched_queue_push(&scheduler->ready_queue, task);
 
 	} else
@@ -579,11 +588,10 @@ void scheduler_wait_svc(uint32_t svc, struct exception_frame *frame)
 
 	scheduler_spin_lock();
 
-	assert(futex->marker == SCHEDULER_FUTEX_MARKER);
+	assert(futex != 0 && futex->marker == SCHEDULER_FUTEX_MARKER);
 
 	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
-	if (current->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -702,9 +710,16 @@ void scheduler_wake_svc(uint32_t svc, struct exception_frame *frame)
 
 	scheduler_spin_lock();
 
-	/* Only wake if we are running */
-	if (sched_get_current()->state == TASK_RUNNING)
-		frame->r0 = scheduler_wake_futex(futex, all);
+	assert(futex != 0 && futex->marker == SCHEDULER_FUTEX_MARKER);
+
+	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
+	if (scheduler_check_context_switch()) {
+		scheduler_spin_unlock();
+		return;
+	}
+
+	/* Run wake algo */
+	frame->r0 = scheduler_wake_futex(futex, all);
 
 	/* Request a context switch */
 	scheduler_request_switch(scheduler_current_core());
@@ -726,8 +741,7 @@ void scheduler_terminate_svc(uint32_t svc, struct exception_frame *frame)
 	scheduler_spin_lock();
 
 	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
-	if (sched_get_current()->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -738,32 +752,20 @@ void scheduler_terminate_svc(uint32_t svc, struct exception_frame *frame)
 		scheduler_spin_unlock();
 		return;
 	}
+
 	assert(task->marker == SCHEDULER_TASK_MARKER);
 
-	/* Are we terminating a running task? */
-	if (task->state == TASK_RUNNING || task->state == TASK_PENDING_SUSPEND || task->state == TASK_PENDING_TERMINATE) {
+	/* Clean up */
+	sched_queue_remove(task);
+	sched_list_remove(&task->timer_node);
+	sched_list_remove(&task->scheduler_node);
 
-		/* Mark as terminated */
-		task->state = TASK_PENDING_TERMINATE;
+	/* Mark as terminated */
+	task->state = TASK_TERMINATED;
+	task->core = UINT32_MAX;
 
-		/* Kick the context switch */
-		scheduler_request_switch(task->core);
-
-	} else {
-
-		/* Mark as terminated */
-		assert(task->core == UINT32_MAX);
-		task->state = TASK_TERMINATED;
-		task->core = UINT32_MAX;
-
-		/* Clean up */
-		sched_queue_remove(task);
-		sched_list_remove(&task->timer_node);
-		sched_list_remove(&task->scheduler_node);
-
-		/* Forward to the termination hook */
-		scheduler_terminated_hook(task);
-	}
+	/* Forward to the termination hook */
+	scheduler_terminated_hook(task);
 
 	/* Release the block */
 	scheduler_spin_unlock();
@@ -778,8 +780,7 @@ void scheduler_priority_svc(uint32_t svc, struct exception_frame *frame)
 	scheduler_spin_lock();
 
 	/* We might have been suspended or terminated, if so bail, the context switch will adjust the wait queues */
-	if (sched_get_current()->state != TASK_RUNNING) {
-		scheduler_request_switch(scheduler_current_core());
+	if (scheduler_check_context_switch()) {
 		scheduler_spin_unlock();
 		return;
 	}
@@ -868,37 +869,18 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 	if (task != 0) {
 
 		assert(task->marker == SCHEDULER_TASK_MARKER);
-		if (task->marker == SCHEDULER_TASK_MARKER) {
 
-			/* Always update the scheduler frame and active core */
-			task->psp = frame;
-			task->core = -1;
-
-			/* Is the current task pending a termination? */
-			if (task->state == TASK_PENDING_TERMINATE) {
-
-				/* Clean up */
-				sched_queue_remove(task);
-				sched_list_remove(&task->timer_node);
-				sched_list_remove(&task->scheduler_node);
-
-				/* Forward with the correct state */
-				task->state = TASK_TERMINATED;
-				scheduler_terminated_hook(task);
-
-			} else if (task->state == TASK_PENDING_SUSPEND) {
-				task->state = TASK_SUSPENDED;
+		if (task->state == TASK_RUNNING) {
 
 			/* No switch if scheduler is locked */
-			} else if (scheduler->locked < 0) {
+			if (scheduler->locked < 0) {
 				scheduler_spin_unlock();
 				return frame;
+			}
 
 			/* Force the running task to complete for the processor */
-			} else if (task->state == TASK_RUNNING) {
-				task->state = TASK_READY;
-				sched_queue_push(&scheduler->ready_queue, task);
-			}
+			task->state = TASK_READY;
+			sched_queue_push(&scheduler->ready_queue, task);
 		}
 
 		/* Clear the current task */

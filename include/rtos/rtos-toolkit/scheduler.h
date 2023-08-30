@@ -139,11 +139,8 @@ struct sched_queue
 
 enum task_state
 {
-//	TASK_OTHER = -1,
-	TASK_PENDING_TERMINATE = 0,
 	TASK_TERMINATED = 1,
 	TASK_BLOCKED = 2,
-	TASK_PENDING_SUSPEND = 3,
 	TASK_SUSPENDED = 4,
 	TASK_READY = 5,
 	TASK_RUNNING = 6,
