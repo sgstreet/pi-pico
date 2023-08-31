@@ -211,6 +211,7 @@ struct scheduler
 	struct sched_queue suspended_queue;
 
 	struct sched_list tasks;
+	struct sched_list terminated;
 	struct sched_list timers;
 	volatile unsigned long timer_expires;
 

@@ -198,7 +198,7 @@ static inline struct task *sched_get_current(void)
 
 static inline void sched_set_current(struct task *task)
 {
-	assert(task == 0 || task->marker == SCHEDULER_TASK_MARKER);
+	assert(task != 0 || task->marker == SCHEDULER_TASK_MARKER);
 	cls_datum(current_task) = task;
 	scheduler_switch_hook(task);
 }
@@ -408,8 +408,12 @@ __fast_section __optimize void scheduler_core_tick(void)
 	unsigned long timer_expires = scheduler->timer_expires;
 	unsigned long ticks = scheduler->ticks;
 
-	/* Do we need a context switch */
-	if (--cls_datum(slice_expires) < 0 || timer_expires <= ticks)
+	/* Check for expired timer */
+	if (timer_expires <= ticks)
+		scheduler_request_switch(scheduler_current_core());
+
+	/* And time slice enabled and expired */
+	if (cls_datum(slice_expires) != UINT32_MAX && --cls_datum(slice_expires) == 0)
 		scheduler_request_switch(scheduler_current_core());
 
 	/* Pass to the hook */
@@ -727,13 +731,6 @@ void scheduler_wake_svc(uint32_t svc, struct exception_frame *frame)
 }
 SCHEDULER_DECLARE_SVC(SCHEDULER_WAKE_SVC, scheduler_wake_svc);
 
-__weak void scheduler_terminated_hook(struct task *task)
-{
-	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
-	if (task->exit_handler)
-		task->exit_handler(task);
-}
-
 void scheduler_terminate_svc(uint32_t svc, struct exception_frame *frame)
 {
 	struct task *task = (struct task *)frame->r0;
@@ -755,17 +752,12 @@ void scheduler_terminate_svc(uint32_t svc, struct exception_frame *frame)
 
 	assert(task->marker == SCHEDULER_TASK_MARKER);
 
-	/* Clean up */
-	sched_queue_remove(task);
-	sched_list_remove(&task->timer_node);
+	/* Move to the terminated list */
 	sched_list_remove(&task->scheduler_node);
+	sched_list_push(&scheduler->terminated, &task->scheduler_node);
 
-	/* Mark as terminated */
-	task->state = TASK_TERMINATED;
-	task->core = UINT32_MAX;
-
-	/* Forward to the termination hook */
-	scheduler_terminated_hook(task);
+	/* Ensure we kick a core */
+	scheduler_request_switch(task->core == UINT32_MAX ? scheduler_current_core() : task->core);
 
 	/* Release the block */
 	scheduler_spin_unlock();
@@ -823,6 +815,13 @@ static bool scheduler_is_viable(void)
 	return viable;
 }
 
+__weak void scheduler_terminated_hook(struct task *task)
+{
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
+	if (task->exit_handler)
+		task->exit_handler(task);
+}
+
 __weak void scheduler_idle_hook(void)
 {
 	scheduler_spin_unlock();
@@ -859,7 +858,6 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 	struct task *expired;
 	struct task *task = sched_get_current();
 	struct task *last_task = task;
-	__unused unsigned long current_core = scheduler_current_core();
 
 	assert(scheduler != 0);
 
@@ -870,6 +868,12 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 
 		assert(task->marker == SCHEDULER_TASK_MARKER);
 
+		/* Save the frame and clear the core */
+		task->psp = frame;
+		task->psp = frame;
+		task->core = UINT32_MAX;
+
+		/* Need special handling for the running task */
 		if (task->state == TASK_RUNNING) {
 
 			/* No switch if scheduler is locked */
@@ -882,13 +886,26 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 			task->state = TASK_READY;
 			sched_queue_push(&scheduler->ready_queue, task);
 		}
-
-		/* Clear the current task */
-		sched_set_current(0);
 	}
 
 	/* Try to get the next task */
 	while (true) {
+
+		/* Cleanup terminated tasks which have no core assigned or matches our core */
+		struct task *next;
+		sched_list_for_each_entry_mutable(task, next, &scheduler->terminated, scheduler_node) {
+			if (task->core == UINT32_MAX || task->core == scheduler_current_core()) {
+
+				/* Clean up */
+				sched_queue_remove(task);
+				sched_list_remove(&task->timer_node);
+				sched_list_remove(&task->scheduler_node);
+
+				/* Forward to the termination hook */
+				task->state = TASK_TERMINATED;
+				scheduler_terminated_hook(task);
+			}
+		}
 
 		/* Check for deferred wake ups */
 		for (int i = 0; i < SCHEDULER_MAX_DEFERED_WAKE; ++i) {
@@ -1072,6 +1089,7 @@ int scheduler_init(struct scheduler *new_scheduler, size_t tls_size)
 	sched_queue_init(&new_scheduler->suspended_queue);
 	sched_list_init(&new_scheduler->timers);
 	sched_list_init(&new_scheduler->tasks);
+	sched_list_init(&new_scheduler->terminated);
 
 	/* Save a scheduler singleton */
 	scheduler = new_scheduler;

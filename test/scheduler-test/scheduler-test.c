@@ -124,7 +124,7 @@ int _main(int argc, char **argv)
 	main_task_descriptor.entry_point = main_task;
 	main_task_descriptor.exit_handler = 0;
 	main_task_descriptor.context = &args;
-	main_task_descriptor.flags = 0;
+	main_task_descriptor.flags = SCHEDULER_TASK_STACK_CHECK;
 	main_task_descriptor.priority = TASK_HIGH_PRIORITY + 1;
 	struct task *main_task = scheduler_create(alloca(SCHEDULER_MAIN_STACK_SIZE), SCHEDULER_MAIN_STACK_SIZE, &main_task_descriptor);
 	if (!main_task) {
@@ -144,7 +144,7 @@ int _main(int argc, char **argv)
 static struct task *create_task(const char *name, task_entry_point_t entry_point, task_exit_handler_t exit_handler, unsigned long priority, void *context)
 {
 	/* Set up the descriptor */
-	struct task_descriptor desc = { .entry_point = entry_point, .exit_handler = exit_handler, .priority = priority, .context = context };
+	struct task_descriptor desc = { .entry_point = entry_point, .exit_handler = exit_handler, .priority = priority, .context = context, .flags = SCHEDULER_TASK_STACK_CHECK };
 	strncpy(desc.name, name, sizeof(desc.name));
 
 	unsigned int state = scheduler_spin_lock_irqsave();
@@ -173,6 +173,7 @@ static __unused void task_exit_handler(struct task *task)
 static volatile bool task_busy_run = true;
 static __unused void task_busy(void *context)
 {
+	__unused struct task *task = scheduler_task();
 	while (task_busy_run);
 	scheduler_terminate(0);
 }
