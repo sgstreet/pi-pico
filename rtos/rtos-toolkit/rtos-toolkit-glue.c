@@ -239,20 +239,7 @@ void scheduler_tls_init_hook(void *tls)
 
 void scheduler_switch_hook(struct task *task)
 {
-	if (task == 0) {
-		_set_tls(0);
-		return;
-	}
-
-	if (task->marker != SCHEDULER_TASK_MARKER)
-		abort();
-
-	if (task->queue_node.next != &task->queue_node || task->queue_node.next != task->queue_node.prev)
-		abort();
-
-	if (task->timer_node.next != &task->timer_node || task->timer_node.next != task->timer_node.prev)
-		abort();
-
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
 	_set_tls(task->tls);
 }
 
