@@ -210,16 +210,6 @@ static inline void sched_queue_init(struct sched_queue *queue)
 	sched_list_init(&queue->tasks);
 }
 
-static inline void sched_queue_check(struct sched_queue *queue)
-{
-	int cnt = 0;
-	struct sched_list *entry;
-	sched_list_for_each(entry, &queue->tasks) {
-		if (++cnt > queue->size)
-			abort();
-	}
-}
-
 static inline bool sched_queue_empty(struct sched_queue *queue)
 {
 	assert(queue != 0);
@@ -233,7 +223,6 @@ static inline void sched_queue_remove(struct task *task)
 	sched_list_remove(&task->queue_node);
 	if (task->current_queue) {
 		--task->current_queue->size;
-		sched_queue_check(task->current_queue);
 		task->current_queue = 0;
 	}
 }
@@ -242,24 +231,23 @@ static inline void sched_queue_push(struct sched_queue *queue, struct task *task
 {
 	assert(queue != 0 && task != 0 && task->current_queue == 0);
 
-	sched_queue_check(queue);
-
 	/* Find the insert point */
-	int timeout = 100;
-	struct task *entry;
-	sched_list_for_each_entry(entry, &queue->tasks, queue_node) {
-		if (--timeout < 1)
-			abort();
-		if (entry->current_priority > task->current_priority)
+	struct task *entry = 0;
+	struct sched_list *node;
+	sched_list_for_each(node, &queue->tasks)
+		if (container_of(node, struct task, queue_node)->current_priority > task->current_priority) {
+			entry = container_of(node, struct task, queue_node);;
 			break;
-	}
+		}
 
 	/* Insert at the correct position, which might be the head */
-	sched_list_insert_before(&entry->queue_node, &task->queue_node);
+	if (entry)
+		sched_list_insert_before(&entry->queue_node, &task->queue_node);
+	else
+		sched_list_push(&queue->tasks, &task->queue_node);
+
 	task->current_queue = queue;
 	++queue->size;
-
-	sched_queue_check(queue);
 }
 
 static inline struct task *sched_queue_pop(struct sched_queue *queue)
@@ -268,12 +256,9 @@ static inline struct task *sched_queue_pop(struct sched_queue *queue)
 
 	assert(queue != 0);
 
-	sched_queue_check(queue);
-
 	task = sched_list_pop_entry(&queue->tasks, struct task, queue_node);
 	if (task) {
 		--queue->size;
-		sched_queue_check(queue);
 		task->current_queue = 0;
 	}
 
@@ -301,10 +286,8 @@ static inline void sched_queue_reprioritize(struct task *task, unsigned long new
 	task->current_priority = new_priority;
 	struct sched_queue *queue = task->current_queue;
 	if (queue) {
-		sched_queue_check(queue);
 		sched_queue_remove(task);
 		sched_queue_push(queue, task);
-		sched_queue_check(queue);
 	}
 }
 
@@ -753,6 +736,7 @@ void scheduler_terminate_svc(uint32_t svc, struct exception_frame *frame)
 	assert(task->marker == SCHEDULER_TASK_MARKER);
 
 	/* Move to the terminated list */
+	task->state = TASK_TERMINATED;
 	sched_list_remove(&task->scheduler_node);
 	sched_list_push(&scheduler->terminated, &task->scheduler_node);
 
@@ -902,7 +886,6 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 				sched_list_remove(&task->scheduler_node);
 
 				/* Forward to the termination hook */
-				task->state = TASK_TERMINATED;
 				scheduler_terminated_hook(task);
 			}
 		}
@@ -1391,4 +1374,26 @@ void scheduler_for_each(struct sched_list *list, for_each_sched_node_t func, voi
 		if (!func(current, context))
 			break;
 	scheduler_unlock();
+}
+
+enum task_state scheduler_get_state(struct task *task)
+{
+	/* Use the current task if needed */
+	if (!task)
+		task = scheduler_task();
+
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
+
+	return task->state;
+}
+
+const char *scheduler_get_name(struct task *task)
+{
+	/* Use the current task if needed */
+	if (!task)
+		task = scheduler_task();
+
+	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
+
+	return task->name;
 }

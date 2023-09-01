@@ -267,4 +267,7 @@ void scheduler_set_flags(struct task *task, unsigned long mask);
 void scheduler_clear_flags(struct task *task, unsigned long mask);
 unsigned long scheduler_get_flags(struct task *task);
 
+enum task_state scheduler_get_state(struct task *task);
+const char *scheduler_get_name(struct task *task);
+
 #endif
