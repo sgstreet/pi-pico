@@ -59,7 +59,7 @@ static inline bool list_is_empty(const struct linked_list *list)
 {
 	assert(list != 0);
 
-	return list->next == list;
+	return list->next == list && list->prev == list;
 }
 
 static inline void list_insert_after(struct linked_list *entry, struct linked_list *node)
@@ -164,11 +164,13 @@ static inline int list_is_linked(struct linked_list *node)
 {
 	assert(node != 0);
 
-	return node->next != node;
+	return node->next != node && node->prev != node;
 }
 
 static inline size_t list_size(struct linked_list *list)
 {
+	assert(list != 0);
+
 	size_t size = 0;
 	struct linked_list *cursor;
 	list_for_each(cursor, list)
