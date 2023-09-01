@@ -102,7 +102,7 @@ static void osTimerThreadInit(void)
 
 osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, const osTimerAttr_t *attr)
 {
-	const osTimerAttr_t default_attr = { 0 };
+	const osTimerAttr_t default_attr = { .name = "timer" };
 
 	/* Ensure the timer function is valid */
 	if (!func)
@@ -128,7 +128,8 @@ osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, 
 
 	/* Initialize */
 	new_timer->marker = RTOS_TIMER_MARKER;
-	new_timer->name = attr->name;
+	strncpy(new_timer->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_timer->name[RTOS_NAME_SIZE - 1] = 0;
 	new_timer->attr_bits = attr->attr_bits | (new_timer != attr->cb_mem ? osDynamicAlloc : 0);
 	new_timer->type = type;
 	new_timer->func = func;

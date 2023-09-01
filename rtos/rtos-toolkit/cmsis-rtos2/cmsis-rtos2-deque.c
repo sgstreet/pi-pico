@@ -63,7 +63,7 @@ static inline bool deque_is_full(const struct rtos_deque *deque)
 
 osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDequeAttr_t *attr)
 {
-	const osDequeAttr_t default_attr = { .attr_bits = 0 };
+	const osDequeAttr_t default_attr = { .name = "deque",  .attr_bits = 0 };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -109,7 +109,8 @@ osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDe
 
 	/* Initialize the remaining parts of the queue  */
 	new_deque->marker = RTOS_DEQUE_MARKER;
-	new_deque->name = attr->name;
+	strncpy(new_deque->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_deque->name[RTOS_NAME_SIZE - 1] = 0;
 	new_deque->element_size = element_size;
 	new_deque->element_count = element_count;
 	new_deque->front = 0;

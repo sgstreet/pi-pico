@@ -22,7 +22,7 @@ __weak void _rtos2_release_message_queue(struct rtos_message_queue *message_queu
 
 osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAttr_t *attr)
 {
-	const osMessageQueueAttr_t default_attr = { .attr_bits = 0 };
+	const osMessageQueueAttr_t default_attr = { .name = "message-queue" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -70,7 +70,8 @@ osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, cons
 
 	/* Initialize the remaining parts of the queue  */
 	new_queue->marker = RTOS_MESSAGE_QUEUE_MARKER;
-	new_queue->name = attr->name;
+	strncpy(new_queue->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_queue->name[RTOS_NAME_SIZE - 1] = 0;
 	new_queue->msg_size = msg_size;
 	new_queue->msg_count = msg_count;
 	list_init(&new_queue->messages);

@@ -46,7 +46,7 @@ __weak void _rtos2_release_thread(struct rtos_thread *thread)
 
 __weak void _rtos2_thread_stack_overflow(struct rtos_thread *thread)
 {
-	fprintf(stderr, "stack overflow: %s %p\n", thread->name, thread);
+	fprintf(stderr, "stack overflow: %s %p\n", scheduler_get_name(thread->stack), thread);
 }
 
 static osStatus_t osReleaseOwnRobustMutex(const osResource_t resource, void *context)
@@ -76,6 +76,10 @@ static osStatus_t osReleaseOwnRobustMutex(const osResource_t resource, void *con
 
 static osStatus_t osThreadReap(const osResource_t resource, void *context)
 {
+	assert(context != 0);
+
+	struct linked_list *reap_list = context;
+
 	/* Maker the resource is valid */
 	osStatus_t os_status = osIsResourceValid(resource, RTOS_THREAD_MARKER);
 	if (os_status != osOK)
@@ -85,32 +89,11 @@ static osStatus_t osThreadReap(const osResource_t resource, void *context)
 	/* Release inactive threads i.e. marked with a scheduler state of other */
 	if (thread->attr_bits & osReapThread) {
 
-		/* Release any robust mutexes owned by the thread */
-		os_status = osKernelResourceForEach(osResourceRobustMutex, osReleaseOwnRobustMutex, thread);
-		if (os_status != osOK)
-			return os_status;
-
-		/* Release the joiner event */
-		os_status = osEventFlagsDelete(&thread->joiner);
-		if (os_status != osOK)
-			return os_status;
-
-		/* Release the thread events */
-		os_status = osEventFlagsDelete(&thread->flags);
-		if (os_status != osOK)
-			return os_status;
-
 		/* Remove from resource list */
-		osStatus_t os_status = osKernelResourceRemove(osResourceThread, &thread->resource_node);
-		if (os_status != osOK)
-			return os_status;
+		list_remove(&thread->resource_node);
 
-		/* Clear the marker */
-		thread->marker = ~RTOS_THREAD_MARKER;
-
-		/* Are we managing the memory? */
-		if (thread->attr_bits & osDynamicAlloc)
-			_rtos2_release_thread(thread);
+		/* Add to the reap list */
+		list_add(reap_list, &thread->resource_node);
 	}
 
 	/* All good */
@@ -119,6 +102,8 @@ static osStatus_t osThreadReap(const osResource_t resource, void *context)
 
 static void osThreadReaper(void *context)
 {
+	struct linked_list reap_list = LIST_INIT(reap_list);
+
 	/* Allow kernel to exit even if we are still running */
 	scheduler_set_flags(0, SCHEDULER_IGNORE_VIABLE);
 
@@ -130,11 +115,48 @@ static void osThreadReaper(void *context)
 		if (flags & osFlagsError)
 			abort();
 
-		/* Reap some threads? */
+		/* Reap some threads? If so do this in two stages because we do not want to hold a critical section while cleaning up */
 		if (flags & RTOS_REAPER_CLEAN) {
-			osStatus_t os_status = osKernelResourceForEach(osResourceThread, osThreadReap, 0);
-			if (os_status != osOK)
-				abort();
+
+			/* Clean until everything is clean */
+			while (true) {
+
+				/* Build reap list */
+				osStatus_t os_status = osKernelResourceForEach(osResourceThread, osThreadReap, &reap_list);
+				if (os_status != osOK)
+					abort();
+
+				/* We done is the last reap found no thread */
+				if (list_is_empty(&reap_list))
+					break;
+
+				/* Clean up everything in the reap list, */
+				struct rtos_thread *thread;
+				while ((thread = list_pop_entry(&reap_list, struct rtos_thread, resource_node)) != 0) {
+
+					/* Release any robust mutexes owned by the thread */
+					osStatus_t os_status = osKernelResourceForEach(osResourceRobustMutex, osReleaseOwnRobustMutex, thread);
+					if (os_status != osOK)
+						abort();
+
+					/* Release the joiner event */
+					os_status = osEventFlagsDelete(&thread->joiner);
+					if (os_status != osOK)
+						abort();
+
+					/* Release the thread events */
+					os_status = osEventFlagsDelete(&thread->flags);
+					if (os_status != osOK)
+						abort();
+
+					/* Clear the marker */
+					thread->marker = 0;
+
+					/* Are we managing the memory? */
+					if (thread->attr_bits & osDynamicAlloc)
+						_rtos2_release_thread(thread);
+				}
+			}
 		}
 
 		/* Done? */
@@ -258,7 +280,6 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void *argument, const osThreadAttr
 		return 0;
 
 	/* Initialize the remain parts of the thread */
-	new_thread->name = attr->name;
 	new_thread->marker = RTOS_THREAD_MARKER;
 	new_thread->func = func;
 	new_thread->context = argument;
@@ -284,14 +305,7 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void *argument, const osThreadAttr
 	desc.priority = osSchedulerPriority(attr->priority == osPriorityNone ? osPriorityNormal : attr->priority);
 
 	/* Add it to the kernel thread resource list */
-	uint32_t mk1 = new_thread->marker;
-	uint8_t amk1 = *(((uint8_t *)new_thread) + 1023);
-	assert(mk1 == RTOS_THREAD_MARKER);
 	os_status = osKernelResourceAdd(osResourceThread, &new_thread->resource_node);
-	uint32_t mk2 = new_thread->marker;
-	uint8_t amk2 = *(((uint8_t *)new_thread) + 1023);
-	assert(mk2 == RTOS_THREAD_MARKER);
-	assert(amk1 == amk2);
 	if (os_status != osOK)
 		goto delete_joiner;
 
@@ -336,13 +350,18 @@ const char *osThreadGetName(osThreadId_t thread_id)
 	if (os_status != osOK)
 		return 0;
 
+
 	/* Return the name */
-	return thread->name;
+	struct task *task = ((struct rtos_thread *)thread_id)->stack;
+	return task->name;
 }
 
 osThreadId_t osThreadGetId(void)
 {
-	return scheduler_task()->context;
+	osThreadId_t id = scheduler_task()->context;
+	if (osIsResourceValid(id, RTOS_THREAD_MARKER) != osOK)
+		return 0;
+	return id;
 }
 
 osThreadState_t osThreadGetState(osThreadId_t thread_id)
@@ -356,11 +375,13 @@ osThreadState_t osThreadGetState(osThreadId_t thread_id)
 	os_status = osIsResourceValid(thread_id, RTOS_THREAD_MARKER);
 	if (os_status != osOK)
 		return osThreadError;
-	struct task *task = ((struct rtos_thread *)thread_id)->stack;
-	__unused enum task_state state = task->state;
+
+	struct rtos_thread *thread = thread_id;
+	if (thread->attr_bits & osReapThread)
+		return osThreadError;
 
 	/* Remap the task states */
-	switch (task->state) {
+	switch (scheduler_get_state(thread->stack)) {
 
 		case TASK_TERMINATED:
 			return osThreadTerminated;
@@ -596,14 +617,14 @@ void osThreadExit(void)
 	os_status = osIsResourceValid(id, RTOS_THREAD_MARKER);
 	if (os_status != osOK)
 		abort();
-	struct rtos_thread *rtos_thread = id;
+	struct rtos_thread *thread = id;
 
-	/* Initialize the thread reaper if needed, i.e. the thread exiting is detached  */
-	if ((rtos_thread->attr_bits & osThreadJoinable) == 0)
+	/* Initialize the thread reaper if needed  */
+	if ((thread->attr_bits & osThreadJoinable) == 0)
 		osCallOnce(&reaper_thread_init, osThreadReaperInit);
 
 	/* Tell the scheduler to evict the task, cleaning happens on the reaper thread through the scheduler task exit handler callback for via osThreadJoin */
-	scheduler_terminate(rtos_thread->stack);
+	scheduler_terminate(thread->stack);
 
 	/* We should never get here but scheduler_terminate is not __no_return */
 	abort();
@@ -615,6 +636,11 @@ osStatus_t osThreadJoin(osThreadId_t thread_id)
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
 	if (os_status != osOK)
 		return os_status;
+
+	/* Sure the thread is know to the kernel */
+	os_status = osKernelResourceIsRegistered(osResourceThread, thread_id);
+	if (os_status == osErrorResource)
+		return osErrorParameter;
 
 	/* Validate the thread */
 	os_status = osIsResourceValid(thread_id, RTOS_THREAD_MARKER);
@@ -635,7 +661,12 @@ osStatus_t osThreadJoin(osThreadId_t thread_id)
 	if (flags & osFlagsError)
 		return (osStatus_t)flags;
 
-	/* Release any robust mutexes owned by the thread */
+	/* Remove the resource from the kernel */
+	os_status = osKernelResourceRemove(osResourceThread, &thread->resource_node);
+	if (os_status != osOK)
+		return os_status;
+
+	/* Release any robust mutexes owned by the thread, do this early before the reaper */
 	os_status = osKernelResourceForEach(osResourceRobustMutex, osReleaseOwnRobustMutex, thread);
 	if (os_status != osOK)
 		return os_status;
@@ -650,13 +681,8 @@ osStatus_t osThreadJoin(osThreadId_t thread_id)
 	if (os_status != osOK)
 		return os_status;
 
-	/* Remove from resource list */
-	os_status = osKernelResourceRemove(osResourceThread, &thread->resource_node);
-	if (os_status != osOK)
-		return os_status;
-
 	/* Clear the marker */
-	thread->marker = ~RTOS_THREAD_MARKER;
+	thread->marker = 0;
 
 	/* Are we managing the memory? */
 	if (thread->attr_bits & osDynamicAlloc)
@@ -685,9 +711,17 @@ osStatus_t osThreadTerminate(osThreadId_t thread_id)
 
 	/* Start the thread termination */
 	int status = scheduler_terminate(thread->stack);
-	osThreadState_t thread_state = osThreadGetState(thread_id);
-	if (thread_state != osThreadTerminated && thread_state != osThreadError && status < 0)
-		return osErrorResource;
+	if (status < 0) {
+
+		/* Bad error? */
+		if (status != -ESRCH)
+			return osError;
+
+		/* Check the state os the thread */
+		osThreadState_t thread_state = osThreadGetState(thread_id);
+		if (thread_state != osThreadTerminated && thread_state != osThreadError && status < 0)
+			return osErrorResource;
+	}
 
 	/* Clean should be in progress */
 	return osOK;
@@ -773,11 +807,10 @@ uint32_t osThreadFlagsSet(osThreadId_t thread_id, uint32_t flags)
 
 uint32_t osThreadFlagsClear(uint32_t flags)
 {
-	/* Validate the thread */
-	osStatus_t os_status = osIsResourceValid(osThreadGetId(), RTOS_THREAD_MARKER);
-	if (os_status != osOK)
-		return os_status;
+	/* Always clear the current thread flags */
 	struct rtos_thread *thread = osThreadGetId();
+	if (!thread)
+		return osFlagsErrorUnknown;
 
 	/* Forward */
 	return osEventFlagsClear(&thread->flags, flags);
@@ -785,11 +818,10 @@ uint32_t osThreadFlagsClear(uint32_t flags)
 
 uint32_t osThreadFlagsGet(void)
 {
-	/* Validate the thread */
-	osStatus_t os_status = osIsResourceValid(osThreadGetId(), RTOS_THREAD_MARKER);
-	if (os_status != osOK)
-		return os_status;
+	/* We always get the flags current thread */
 	struct rtos_thread *thread = osThreadGetId();
+	if (!thread)
+		return osFlagsErrorUnknown;
 
 	/* Forward */
 	return osEventFlagsGet(&thread->flags);
@@ -801,11 +833,10 @@ uint32_t osThreadFlagsWait(uint32_t flags, uint32_t options, uint32_t timeout)
 	if (flags & osFlagsError)
 		return osErrorParameter;
 
-	/* Validate the thread */
-	osStatus_t os_status = osIsResourceValid(osThreadGetId(), RTOS_THREAD_MARKER);
-	if (os_status != osOK)
-		return os_status;
+	/* We always wait on the current thread  */
 	struct rtos_thread *thread = osThreadGetId();
+	if (!thread)
+		return osFlagsErrorUnknown;
 
 	/* Forward */
 	return osEventFlagsWait(&thread->flags, flags, options, timeout);

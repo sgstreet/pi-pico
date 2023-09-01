@@ -23,7 +23,7 @@ __weak void _rtos2_release_mutex(struct rtos_mutex *mutex)
 
 osMutexId_t osMutexNew(const osMutexAttr_t *attr)
 {
-	const osMutexAttr_t default_attr = { 0 };
+	const osMutexAttr_t default_attr = { .name = "mutex" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -45,7 +45,8 @@ osMutexId_t osMutexNew(const osMutexAttr_t *attr)
 
 	/* Initialize */
 	new_mutex->marker = RTOS_MUTEX_MARKER;
-	new_mutex->name = attr->name;
+	strncpy(new_mutex->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_mutex->name[RTOS_NAME_SIZE - 1] = 0;
 	new_mutex->attr_bits = attr->attr_bits | (new_mutex != attr->cb_mem ? osDynamicAlloc : 0);
 	scheduler_futex_init(&new_mutex->futex, (long *)&new_mutex->value, (new_mutex->attr_bits & osMutexPrioInherit) ? SCHEDULER_FUTEX_PI | SCHEDULER_FUTEX_OWNER_TRACKING | SCHEDULER_FUTEX_CONTENTION_TRACKING : SCHEDULER_FUTEX_OWNER_TRACKING | SCHEDULER_FUTEX_CONTENTION_TRACKING);
 	new_mutex->count = 0;
@@ -193,8 +194,8 @@ osStatus_t osMutexRobustRelease(osMutexId_t mutex_id, osThreadId_t owner)
 		return osErrorResource;
 
 	/* Handle recursive lock */
-	if ((mutex->attr_bits & osMutexRecursive) && --mutex->count > 0)
-		return osOK;
+	if (mutex->attr_bits & osMutexRecursive)
+		mutex->count = 0;
 
 	/* Hot path unlock in the non-contented case */
 	long expected = (long)thread->stack;

@@ -63,7 +63,7 @@ typedef struct {
 struct rtos_eventflags
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -78,7 +78,7 @@ struct rtos_eventflags
 struct rtos_mutex
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -93,7 +93,7 @@ struct rtos_mutex
 struct rtos_semaphore
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -108,7 +108,6 @@ struct rtos_semaphore
 struct rtos_thread
 {
 	osResourceMarker_t marker;
-	const char *name;
 
 	uint32_t attr_bits;
 	osThreadFunc_t func;
@@ -116,8 +115,8 @@ struct rtos_thread
 	void *stack;
 	size_t stack_size;
 
-	struct rtos_eventflags flags;
 	struct rtos_eventflags joiner;
+	struct rtos_eventflags flags;
 
 	struct linked_list resource_node;
 
@@ -127,7 +126,7 @@ struct rtos_thread
 struct rtos_memory_pool
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -146,7 +145,7 @@ struct rtos_memory_pool
 struct rtos_timer
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -173,7 +172,7 @@ struct rtos_message
 struct rtos_message_queue
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -193,7 +192,7 @@ struct rtos_message_queue
 struct rtos_deque
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 
@@ -215,7 +214,7 @@ struct rtos_deque
 struct rtos_resource
 {
 	osResourceMarker_t marker;
-	const char *name;
+	char name[RTOS_NAME_SIZE];
 
 	size_t offset;
 	struct rtos_mutex resource_lock;
@@ -265,14 +264,11 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 bool osKernelResourceIsLocked(osResourceId_t resource_id);
 osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForEachFunc_t func, void *context);
 osStatus_t osKernelResourceDump(osResourceId_t resource_id);
-osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResourceNode_t node);
+osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResource_t resource);
 
 static inline __always_inline __optimize osStatus_t osKernelContextIsValid(bool allowed, uint32_t timeout)
 {
 	if (allowed) {
-
-		if (__get_PRIMASK() != 0 && timeout != 0)
-			return osErrorParameter;
 
 		uint32_t irq = __get_IPSR();
 		if (irq == 0)
@@ -287,15 +283,15 @@ static inline __always_inline __optimize osStatus_t osKernelContextIsValid(bool 
 
 		return osOK;
 
-	} else if (__get_PRIMASK() != 0 || __get_IPSR() != 0)
+	} else if (__get_IPSR() != 0)
 		return osErrorISR;
 
 	return osOK;
 }
 
-static inline __always_inline __optimize osStatus_t osIsResourceValid(void *resource, uint32_t marker)
+static inline __always_inline __optimize osStatus_t osIsResourceValid(osResource_t resource, uint32_t marker)
 {
-	osResourceId_t *resource_marker = resource;
+	osResourceMarker_t *resource_marker = resource;
 	if (resource_marker != 0 && (*resource_marker == marker || *resource_marker == ~marker))
 		return osOK;
 

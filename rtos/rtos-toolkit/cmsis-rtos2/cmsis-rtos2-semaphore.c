@@ -23,7 +23,7 @@ __weak void _rtos2_release_semaphore(struct rtos_semaphore *semaphore)
 
 osSemaphoreId_t osSemaphoreNew(uint32_t max_count, uint32_t initial_count, const osSemaphoreAttr_t *attr)
 {
-	const osSemaphoreAttr_t default_attr = { 0 };
+	const osSemaphoreAttr_t default_attr = { .name = "semaphore" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -45,7 +45,8 @@ osSemaphoreId_t osSemaphoreNew(uint32_t max_count, uint32_t initial_count, const
 
 	/* Initialize */
 	new_semaphore->marker = RTOS_SEMAPHORE_MARKER;
-	new_semaphore->name = attr->name;
+	strncpy(new_semaphore->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_semaphore->name[RTOS_NAME_SIZE - 1] = 0;
 	new_semaphore->attr_bits = attr->attr_bits | (new_semaphore != attr->cb_mem ? osDynamicAlloc : 0);
 	new_semaphore->max_count = max_count;
 	new_semaphore->value = initial_count;

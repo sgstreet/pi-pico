@@ -23,7 +23,7 @@ __weak void _rtos2_release_eventflags(struct rtos_eventflags *eventflags)
 
 osEventFlagsId_t osEventFlagsNew(const osEventFlagsAttr_t *attr)
 {
-	const osEventFlagsAttr_t default_attr = { 0 };
+	const osEventFlagsAttr_t default_attr = { .name = "event-flags" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -45,7 +45,8 @@ osEventFlagsId_t osEventFlagsNew(const osEventFlagsAttr_t *attr)
 
 	/* Initialize */
 	new_eventflags->marker = RTOS_EVENTFLAGS_MARKER;
-	new_eventflags->name = attr->name;
+	strncpy(new_eventflags->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_eventflags->name[RTOS_NAME_SIZE - 1] = 0;
 	new_eventflags->attr_bits = attr->attr_bits | (new_eventflags != attr->cb_mem ? osDynamicAlloc : 0);
 	new_eventflags->flags = 0;
 	new_eventflags->waiters = 0;
@@ -206,21 +207,9 @@ osStatus_t osEventFlagsDelete(osEventFlagsId_t ef_id)
 		return os_status;
 	struct rtos_eventflags *eventflags = ef_id;
 
-	/* Clear the marker, this will force failure from new users */
-	eventflags->marker = 0;
-
-	/* Set the osFlagsError bit and kick the futex, this will terminate all waiting threads */
-	atomic_fetch_or(&eventflags->flags, osFlagsError);
-	int status = scheduler_futex_wake(&eventflags->futex, true);
-	if (status < 0)
-		return osFlagsError;
-
-	/* Wait for the number of waiters to be zero */
-	osPriority_t old_priority = osThreadGetPriority(osThreadGetId());
-	osThreadSetPriority(osThreadGetId(), osPriorityIdle);
-	while (eventflags->waiters)
-		osThreadYield();
-	osThreadSetPriority(osThreadGetId(), old_priority);
+	/* It is an error to have waiters */
+	if (eventflags->waiters > 0)
+		return osErrorResource;
 
 	/* Remove the eventflags to the resource list */
 	os_status = osKernelResourceRemove(osResourceEventFlags, &eventflags->resource_node);

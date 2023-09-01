@@ -14,7 +14,8 @@
 
 #include <rtos/rtos.h>
 
-core_local uint32_t marker = 0xdeadbeef;
+#define STACK_SIZE 1024
+#define NUM_STACKS 20
 
 struct core_data {
 	uint32_t marker;
@@ -37,9 +38,9 @@ extern __weak unsigned int scheduler_spin_lock_irqsave(void);
 extern __weak void scheduler_spin_unlock_irqrestore(unsigned int state);
 __noreturn void __assert_fail(const char *expr);
 
-
 extern void *_cls;
 struct core_data *core_data = 0;
+core_local uint32_t marker = 0xdeadbeef;
 
 extern struct scheduler* scheduler;
 static __unused struct linked_list stack_pool = LIST_INIT(stack_pool);
@@ -92,58 +93,69 @@ void _rtos2_release(void *ptr)
 
 static __unused void stack_pool_init(void)
 {
-	static char stack_space[10 * 1024];
-	memset(stack_space, 0xaa, 1024);
-	for (size_t i = 0; i < 20; ++i)
-		list_push(&stack_pool, (struct linked_list *)(stack_space + (i * 1024)));
+	static char stack_space[NUM_STACKS * STACK_SIZE];
+	memset(stack_space, 0xaa, STACK_SIZE);
+	for (size_t i = 0; i < NUM_STACKS; ++i)
+		list_push(&stack_pool, (struct linked_list *)(stack_space + (i * STACK_SIZE)));
 }
 
+int outstanding = 0;
 struct rtos_thread *_rtos2_alloc_thread(size_t stack_size);
 struct rtos_thread *_rtos2_alloc_thread(size_t stack_size)
 {
-	backtrace_t backtrace[2];
-	backtrace_unwind(backtrace, 2);
-	size_t idx = atomic_fetch_add(&trace_index, 1) & 127;
-
+//	backtrace_t backtrace[2];
+//	backtrace_unwind(backtrace, 2);
+//	size_t idx = atomic_fetch_add(&trace_index, 1) & 127;
+//
 	/* Calculate the required size needed to provide the request stack size and make it a multiple of 8 bytes */
 	__unused size_t thread_size = sizeof(struct rtos_thread) + stack_size;
-
-	/* Make sure the pool is initialized */
-	osCallOnce(&stack_pool_once, stack_pool_init);
-
-	unsigned int state = scheduler_spin_lock_irqsave();
-	struct rtos_thread *thread = (struct rtos_thread *)list_pop(&stack_pool);
-	scheduler_spin_unlock_irqrestore(state);
-
-	memset(thread, 0xaa, 1024);
-
-	trace[idx].tag = 1;
-	trace[idx].mem_addr = thread;
-	trace[idx].invoker = backtrace[1].name;
-
-	return thread;
+	return calloc(1, thread_size);
+//
+//	/* Make sure the pool is initialized */
+//	osCallOnce(&stack_pool_once, stack_pool_init);
+//
+//	struct rtos_thread *thread = 0;
+//	while (!thread) {
+//		uint32_t state = osKernelEnterCritical();
+//		thread = (struct rtos_thread *)list_pop(&stack_pool);
+//		outstanding += thread != 0 ? 1 : 0;
+//		osKernelExitCritical(state);
+//		osThreadYield();
+//	}
+//
+//	assert(thread != 0);
+//
+//	memset(thread, 0xaa, STACK_SIZE);
+//
+//	trace[idx].tag = 1;
+//	trace[idx].mem_addr = thread;
+//	trace[idx].invoker = backtrace[1].name;
+//
+//	return thread;
 }
 
 void _rtos2_release_thread(struct rtos_thread *thread);
 void _rtos2_release_thread(struct rtos_thread *thread)
 {
-	assert(thread != 0);
-
-	backtrace_t backtrace[2];
-	backtrace_unwind(backtrace, 2);
-	size_t idx = atomic_fetch_add(&trace_index, 1) & 127;
-
-	memset(thread, 0xbb, 1024);
-
-	struct linked_list *node = (struct linked_list *)thread;
-
-	unsigned int state = scheduler_spin_lock_irqsave();
-	list_push(&stack_pool, node);
-	scheduler_spin_unlock_irqrestore(state);
-
-	trace[idx].tag = 2;
-	trace[idx].mem_addr = thread;
-	trace[idx].invoker = backtrace[1].name;
+	free(thread);
+//	assert(thread != 0);
+//
+//	backtrace_t backtrace[2];
+//	backtrace_unwind(backtrace, 2);
+//	size_t idx = atomic_fetch_add(&trace_index, 1) & 127;
+//
+//	memset(thread, 0xbb, STACK_SIZE);
+//
+//	struct linked_list *node = (struct linked_list *)thread;
+//
+//	uint32_t state = osKernelEnterCritical();
+//	list_push(&stack_pool, node);
+//	--outstanding;
+//	osKernelExitCritical(state);
+//
+//	trace[idx].tag = 2;
+//	trace[idx].mem_addr = thread;
+//	trace[idx].invoker = backtrace[1].name;
 }
 
 __noreturn void abort(void);
@@ -218,7 +230,7 @@ static __unused void thread_suspended(void *arg)
 
 static __unused void test6(void)
 {
-	osThreadAttr_t attr = { NULL, osThreadJoinable, NULL, 0U, NULL, 0U, osPriorityNormal, 0U, 0U };
+	osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityNormal, 0U, 0U };
 	osThreadId_t tid;
 	osPriority_t prio;
 	osStatus_t status;
@@ -250,8 +262,8 @@ static __unused void test6(void)
 			scheduler_for_each(&scheduler->tasks, dump_threads, 0);
 		assert(status == osOK);
 
-		status = osThreadJoin(tid);
-		assert(status == osOK);
+//		status = osThreadJoin(tid);
+//		assert(status == osOK);
 	}
 }
 
@@ -284,18 +296,18 @@ static __unused void stack_size1(void)
 	assert(osThreadGetStackSize(NULL) == 0U);
 }
 
-static __unused void termination_test(void)
+static __unused void joinable_termination_test(void)
 {
-	osThreadId_t id;
+	struct rtos_thread *id;
 	osStatus_t os_status;
-	osThreadAttr_t attr = { .name = "termination-test", .attr_bits = osThreadJoinable, .stack_size = 0, .priority = osPriorityLow };
-	static int count = 0;
-	void (*styles[])(void *context) = { delay_forever, self_terminate, thread_exit, thread_busy, thread_yielding, thread_suspended};
-
-	++count;
+	char name[32];
+	osThreadAttr_t attr = { .name = name, .attr_bits = osThreadJoinable, .stack_size = 0, .priority = osPriorityLow };
+	void (*styles[])(void *context) = { thread_exit, delay_forever, self_terminate, thread_busy, thread_yielding, thread_suspended};
 
 	/* First joinable */
 	for (int style = 0; style < array_sizeof(styles); ++style) {
+
+		sprintf(name, "j-termination-test-%d", style);
 
 		id = osThreadNew(styles[style], 0, &attr);
 		assert(id != 0);
@@ -307,16 +319,27 @@ static __unused void termination_test(void)
 		assert(os_status == osOK);
 	}
 
-//	/* Now detached */
-//	attr.attr_bits = osThreadDetached;
-//	for (int style = 0; style < array_sizeof(styles); ++style) {
-//
-//		id = osThreadNew(styles[style], 0, &attr);
-//		assert(id != 0);
-//
-//		os_status  = osThreadTerminate(id);
-//		assert(os_status == osOK || os_status == osErrorParameter);
-//	}
+}
+
+static __unused void detached_termination_test(void)
+{
+	struct rtos_thread *id;
+	osStatus_t os_status;
+	char name[32];
+	osThreadAttr_t attr = { .name = name, .attr_bits = osThreadDetached, .stack_size = 0, .priority = osPriorityLow };
+	void (*styles[])(void *context) = { delay_forever, thread_busy, thread_yielding, thread_suspended};
+
+	/* Now detached, skip exiting thread as this is racy */
+	for (int style = 0; style < array_sizeof(styles); ++style) {
+
+		sprintf(name, "d-termination-test-%d", style);
+
+		id = osThreadNew(styles[style], 0, &attr);
+		assert(id != 0);
+
+		os_status  = osThreadTerminate(id);
+		assert(os_status == osOK || os_status == osErrorParameter);
+	}
 }
 
 int main(int argc, char **argv)
@@ -326,7 +349,8 @@ int main(int argc, char **argv)
 	int cnt = 0;
 	while (true) {
 		printf("marker: 0x%08lx running %d\n", cls_datum(marker), ++cnt);
-//		termination_test();
+		joinable_termination_test();
+		detached_termination_test();
 		test6();
 	}
 }

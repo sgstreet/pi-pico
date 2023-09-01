@@ -22,7 +22,7 @@ __weak void _rtos2_pool_release(void *ptr)
 
 osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, const osMemoryPoolAttr_t *attr)
 {
-	const osMemoryPoolAttr_t default_attr = { 0 };
+	const osMemoryPoolAttr_t default_attr = { .name = "memory-pool" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -66,7 +66,8 @@ osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, con
 
 	/* Initialize the control block */
 	new_pool->marker = RTOS_MEMORY_POOL_MARKER;
-	new_pool->name = attr->name;
+	strncpy(new_pool->name, (attr->name == 0 ? default_attr.name : attr->name), RTOS_NAME_SIZE);
+	new_pool->name[RTOS_NAME_SIZE - 1] = 0;
 	new_pool->block_size = block_size;
 	new_pool->capacity = block_count;
 
