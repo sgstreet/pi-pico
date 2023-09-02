@@ -7,7 +7,7 @@ export ARM_ARCH = armv6-m
 export ARCH_CROSS = cortex-m0plus
 
 export CHIP_TYPE ?= rp2040
-export BOARD_TYPE ?= rocket-hex
+export BOARD_TYPE ?= pi-pico
 
 export BUILD_TYPE ?= debug
 export PROJECT_ROOT ?= ${CURDIR}
