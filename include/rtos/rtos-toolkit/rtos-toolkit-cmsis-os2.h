@@ -239,8 +239,6 @@ struct rtos_kernel
 extern struct rtos_kernel *rtos2_kernel;
 extern const size_t osThreadMinimumStackSize;
 
-extern uint32_t osKernelCurrentCore(void);
-
 osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDequeAttr_t *attr);
 const char *osDequeGetName(osDequeId_t dq_id);
 osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t timeout);

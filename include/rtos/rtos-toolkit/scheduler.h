@@ -216,7 +216,8 @@ struct scheduler
 	volatile unsigned long timer_expires;
 
 	atomic_int locked;
-	volatile unsigned long ticks;
+	atomic_int critical;
+	int critical_counter;
 
 	unsigned long deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
 
@@ -234,8 +235,7 @@ unsigned long scheduler_num_cores(void);
 unsigned long scheduler_current_core(void);
 void scheduler_request_switch(unsigned long core);
 
-unsigned long scheduler_timer_tick(void);
-void scheduler_core_tick(void);
+void scheduler_tick(void);
 
 unsigned long scheduler_get_ticks(void);
 
@@ -244,6 +244,7 @@ struct task *scheduler_task(void);
 
 unsigned long scheduler_enter_critical(void);
 void scheduler_exit_critical(unsigned long state);
+
 int scheduler_lock(void);
 int scheduler_unlock(void);
 int scheduler_lock_restore(int lock);

@@ -66,6 +66,7 @@ struct scheduler *scheduler = 0;
 core_local struct scheduler_frame *scheduler_initial_frame = 0;
 core_local struct task *current_task = 0;
 core_local int slice_expires = INT32_MAX;
+core_local unsigned long ticks = 0;
 
 static inline void sched_list_init(struct sched_list *list)
 {
@@ -368,28 +369,23 @@ static struct task *scheduler_timer_pop(void)
 	return task;
 }
 
-unsigned long scheduler_get_ticks(void)
+__weak unsigned long scheduler_get_ticks(void)
 {
-	return scheduler->ticks;
+	return cls_datum_core(0, ticks);
 }
 
-__fast_section unsigned long scheduler_timer_tick(void)
-{
-	/* Someone may have enabled us too early, ignore */
-	if (!scheduler_is_running())
-		return 0;
-	return ++scheduler->ticks;
-}
-
-__fast_section __optimize void scheduler_core_tick(void)
+__fast_section __optimize void scheduler_tick(void)
 {
 	/* Someone may have enabled us too early, ignore */
 	if (!scheduler_is_running())
 		return;
 
-	/* Update the tick */
+	/* Update the core tick count */
+	++cls_datum(ticks);
+
+	/* Get data for tick handling, we use the API to allow a single tick truth */
 	unsigned long timer_expires = scheduler->timer_expires;
-	unsigned long ticks = scheduler->ticks;
+	unsigned long ticks = scheduler_get_ticks();
 
 	/* Check for expired timer */
 	if (timer_expires <= ticks)
@@ -1066,8 +1062,9 @@ int scheduler_init(struct scheduler *new_scheduler, size_t tls_size)
 	new_scheduler->slice_duration = SCHEDULER_TIME_SLICE;
 	new_scheduler->tls_size = tls_size;
 	new_scheduler->locked = 0;
-	new_scheduler->ticks = 0;
 	new_scheduler->timer_expires = UINT32_MAX;
+	new_scheduler->critical = UINT32_MAX;
+	new_scheduler->critical_counter = 0;
 	sched_queue_init(&new_scheduler->ready_queue);
 	sched_queue_init(&new_scheduler->suspended_queue);
 	sched_list_init(&new_scheduler->timers);
@@ -1121,14 +1118,48 @@ bool scheduler_is_running(void)
 
 unsigned long scheduler_enter_critical(void)
 {
+	assert(scheduler_is_running());
+
 	uint32_t state = disable_interrupts();
-	scheduler_spin_lock();
+
+	uint32_t expected = UINT32_MAX;
+	while (!atomic_compare_exchange_strong(&scheduler->critical, &expected, scheduler_current_core())) {
+		if (expected == scheduler_current_core()) {
+			++scheduler->critical_counter;
+			return state;
+		}
+
+		/* Wait for the release */
+		__WFE();
+
+		/* Initialize again */
+		expected = UINT32_MAX;
+	}
+
+	/* Initialize the counter */
+	scheduler->critical_counter = 1;
+
+	/* Return the interrupt state */
 	return state;
 }
 
 void scheduler_exit_critical(unsigned long state)
 {
-	scheduler_spin_unlock();
+	assert(scheduler_is_running());
+
+	/* Handle nested critical sections */
+	if (atomic_load(&scheduler->critical) == scheduler_current_core() && scheduler->critical_counter > 1) {
+		--scheduler->critical;
+		return;
+	}
+
+	/* Release the critical section */
+	scheduler->critical = UINT32_MAX;
+
+	/* Kick the other cores */
+	__SEV();
+
+	/* All the interrupts */
 	enable_interrupts(state);
 }
 
@@ -1144,11 +1175,8 @@ int scheduler_unlock(void)
 {
 	assert(scheduler_is_running());
 
-	int prev = scheduler->locked++;
-//	if (prev == 0)
-//		scheduler_request_switch(scheduler_current_core());
-
-	return prev;
+	/* Yes this implements atomic_fetch_add */
+	return scheduler->locked++;
 }
 
 int scheduler_lock_restore(int state)

@@ -506,52 +506,14 @@ osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResource_t
 	return osErrorResource;
 }
 
-__weak uint32_t osKernelCurrentCore(void)
-{
-	return 0;
-}
-
 uint32_t osKernelEnterCritical(void)
 {
-	uint32_t state = disable_interrupts();
-
-	uint32_t expected = UINT32_MAX;
-	while (!atomic_compare_exchange_strong(&rtos2_kernel->critical, &expected, osKernelCurrentCore())) {
-		if (expected == osKernelCurrentCore()) {
-			++rtos2_kernel->critical_counter;
-			return state;
-		}
-
-		/* Wait for the release */
-		__WFE();
-
-		/* Initialize again */
-		expected = UINT32_MAX;
-	}
-
-	/* Initialize the counter */
-	rtos2_kernel->critical_counter = 1;
-
-	/* Return the interrupt state */
-	return state;
+	return scheduler_enter_critical();
 }
 
 void osKernelExitCritical(uint32_t state)
 {
-	/* Handle nested critical sections */
-	if (atomic_load(&rtos2_kernel->critical) == osKernelCurrentCore() && rtos2_kernel->critical_counter > 1) {
-		--rtos2_kernel->critical;
-		return;
-	}
-
-	/* Release the critical section */
-	atomic_store(&rtos2_kernel->critical, UINT32_MAX);
-
-	/* Kick the other cores */
-	__SEV();
-
-	/* All the interrupts */
-	enable_interrupts(state);
+	scheduler_exit_critical(state);
 }
 
 struct arguments

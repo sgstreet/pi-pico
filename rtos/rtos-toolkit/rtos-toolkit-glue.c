@@ -13,7 +13,7 @@
 #include <sys/spinlock.h>
 #include <hal/hal.h>
 
-#include <rtos/rtos.h>
+//#include <rtos/rtos.h>
 #include <rtos/rtos-toolkit/scheduler.h>
 
 #define LIBC_LOCK_MARKER 0x89988998
@@ -35,12 +35,11 @@ extern __weak void osTimerTick(uint32_t ticks);
 void scheduler_switch_hook(struct task *task);
 void scheduler_tls_init_hook(void *tls);
 void scheduler_run_hook(bool start);
+void scheduler_tick_hook(unsigned long ticks);
 void scheduler_spin_lock(void);
 void scheduler_spin_unlock(void);
 unsigned int scheduler_spin_lock_irqsave(void);
 void scheduler_spin_unlock_irqrestore(unsigned int state);
-
-uint32_t osKernelCurrentCore(void);
 
 void _init(void);
 void _fini(void);
@@ -232,8 +231,6 @@ void __retarget_lock_release_recursive(_LOCK_T lock)
 
 void scheduler_tls_init_hook(void *tls)
 {
-	if (tls == 0)
-		abort();
 	_init_tls(tls);
 }
 
@@ -243,24 +240,23 @@ void scheduler_switch_hook(struct task *task)
 	_set_tls(task->tls);
 }
 
+void scheduler_tick_hook(unsigned long ticks)
+{
+	if (SystemCurrentCore() == 0)
+		osTimerTick(ticks);
+}
+
 unsigned long systick_counters[2] = { 0, 0 };
 static void systick_handler(void *context)
 {
 	++systick_counters[SystemCurrentCore()];
 
-	/* If the first core, update the timer ticks */
-	if (SystemCurrentCore() == 0)
-		osTimerTick(scheduler_timer_tick());
-
 	/* Forward the to the core tick */
-	scheduler_core_tick();
+	scheduler_tick();
 }
 
-int scheduler_run_hook_counter[2] = {0, 0};
 void scheduler_run_hook(bool start)
 {
-	assert(++scheduler_run_hook_counter[SystemCurrentCore()] == 1);
-
 	if (start) {
 
 		/* Initialize the scheduler exception priorities */
@@ -279,11 +275,6 @@ void scheduler_run_hook(bool start)
 }
 
 #ifdef MULTICORE
-
-uint32_t osKernelCurrentCore(void)
-{
-	return SystemCurrentCore();
-}
 
 void scheduler_spin_lock()
 {
