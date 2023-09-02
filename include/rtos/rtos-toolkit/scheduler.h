@@ -169,8 +169,8 @@ struct task
 	void *tls;
 	unsigned long *stack_marker;
 
-	volatile enum task_state state;
-	volatile int core;
+	enum task_state state;
+	int core;
 
 	unsigned long base_priority;
 	unsigned long current_priority;
@@ -187,7 +187,6 @@ struct task
 	void *context;
 	task_exit_handler_t exit_handler;
 	char name[TASK_NAME_LEN];
-//	size_t stack_size;
 	unsigned long flags;
 
 	unsigned long marker;
@@ -213,7 +212,7 @@ struct scheduler
 	struct sched_list tasks;
 	struct sched_list terminated;
 	struct sched_list timers;
-	volatile unsigned long timer_expires;
+	unsigned long timer_expires;
 
 	atomic_int locked;
 	atomic_int critical;

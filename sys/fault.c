@@ -85,8 +85,6 @@ __isr_section void hard_fault(const struct fault_frame *fault_frame, const struc
 	/* Backtrace the fault */
 	entries = backtrace_fault(&fault, fault_backtrace, FAULT_BACKTRACE_SIZE);
 
-	__BKPT(100);
-
 	/* Save the fault information */
 	save_fault(&fault, fault_backtrace, entries);
 
