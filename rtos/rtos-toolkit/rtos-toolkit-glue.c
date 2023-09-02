@@ -13,7 +13,6 @@
 #include <sys/spinlock.h>
 #include <hal/hal.h>
 
-//#include <rtos/rtos.h>
 #include <rtos/rtos-toolkit/scheduler.h>
 
 #define LIBC_LOCK_MARKER 0x89988998

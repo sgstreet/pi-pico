@@ -217,7 +217,6 @@ struct rtos_resource
 	char name[RTOS_NAME_SIZE];
 
 	size_t offset;
-	struct rtos_mutex resource_lock;
 	struct linked_list resource_list;
 };
 

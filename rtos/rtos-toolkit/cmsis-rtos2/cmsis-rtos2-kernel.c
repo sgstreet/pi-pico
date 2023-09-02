@@ -96,16 +96,6 @@ osStatus_t osKernelInitialize(void)
 		/* Get the resource */
 		struct rtos_resource *resource = &kernel.resources[i];
 
-		/* Manual initialization of the mutex */
-		resource->resource_lock.marker = RTOS_MUTEX_MARKER;
-		strncpy(resource->resource_lock.name, "thread_list_lock", RTOS_NAME_SIZE);
-		resource->resource_lock.name[RTOS_NAME_SIZE - 1] = 0;
-		resource->resource_lock.attr_bits = osMutexPrioInherit | osMutexRecursive | osMutexRobust;
-		resource->resource_lock.value = 0;
-		scheduler_futex_init(&resource->resource_lock.futex, (long *)&resource->resource_lock.value, SCHEDULER_FUTEX_PI | SCHEDULER_FUTEX_OWNER_TRACKING | SCHEDULER_FUTEX_CONTENTION_TRACKING);
-		resource->resource_lock.count = 0;
-		list_init(&resource->resource_lock.resource_node);
-
 		/* Initialize basics stuff */
 		resource->marker = resource_markers[i];
 		strncpy(resource->name, resource_names[i], RTOS_NAME_SIZE);
@@ -113,10 +103,6 @@ osStatus_t osKernelInitialize(void)
 		resource->offset = resource_offsets[i];
 		list_init(&resource->resource_list);
 	}
-
-	/* Add all the resource locks to the robust mutex resource list */
-	for (int i = osResourceThread; i < osResourceLast; ++i)
-		list_add(&kernel.resources[osResourceRobustMutex].resource_list, &kernel.resources[i].resource_lock.resource_node);
 
 	/* Mark the kernel as initialized */
 	kernel.state = osKernelReady;
@@ -128,7 +114,6 @@ osStatus_t osKernelInitialize(void)
 
 osStatus_t osKernelGetInfo(osVersion_t *version, char *id_buf, uint32_t id_size)
 {
-
 	snprintf(id_buf, id_size, "rtos-toolkit");
 	id_buf[id_size - 1] = 0;
 	version->api = 02001003;
@@ -400,7 +385,7 @@ osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForE
 		state = osKernelEnterCritical();
 
 	/* Loop through all the node until either the end of the list or function return interesting status */
-	osStatus_t func_status;
+	osStatus_t func_status = osOK;
 	struct linked_list *current;
 	struct linked_list *next;
 	list_for_each_mutable(current, next, &resource->resource_list) {
