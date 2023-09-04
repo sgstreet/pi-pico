@@ -16,6 +16,14 @@ struct rtos2_thread_capture
 	osThreadId_t *threads;
 };
 
+struct rtos2_robust_mutex_capture
+{
+	uint32_t count;
+	uint32_t size;
+	osThreadId_t thread;
+	osMutexId_t *mutexes;
+};
+
 extern void *_rtos2_alloc(size_t size);
 extern void _rtos2_release(void *ptr);
 
@@ -49,28 +57,54 @@ __weak void _rtos2_thread_stack_overflow(struct rtos_thread *thread)
 	fprintf(stderr, "stack overflow: %s %p\n", scheduler_get_name(thread->stack), thread);
 }
 
-static osStatus_t osReleaseOwnRobustMutex(const osResource_t resource, void *context)
+static osStatus_t osCaptureOwnedRobustMutexes(const osResource_t resource, void *context)
 {
-	/* Validate the mutex */
-	osStatus_t os_status = osIsResourceValid(resource, RTOS_MUTEX_MARKER);
-	if (os_status != osOK)
-		return os_status;
-	osMutexId_t mutex = resource;
+	/* Make sure we can work correctly */
+	if (!context)
+		return osError;
 
-	/* Validate the thread */
-	os_status = osIsResourceValid(context, RTOS_THREAD_MARKER);
-	if (os_status != osOK)
-		return os_status;
-	osThreadId_t owner = context;
+	/* Update the capture */
+	struct rtos2_robust_mutex_capture *capture = context;
+	if (capture->count < capture->size) {
 
-	/* Release the mutex, handling recursive locks */
-	while (osMutexGetOwner(mutex) == owner) {
-		os_status = osMutexRobustRelease(mutex, owner);
-		if (os_status != osOK)
-			return os_status;
+		/* Capture the mutex */
+		if (osMutexGetOwner(resource) == capture->thread)
+			capture->mutexes[capture->count++] = resource;
+
+		/* Continue */
+		return osOK;
 	}
 
-	/* Continue on */
+	/* We are full */
+	return true;
+}
+
+static osStatus_t osReleaseRobustMutex(osThreadId_t thread)
+{
+	osMutexId_t robust_mutexes[5];
+	struct rtos2_robust_mutex_capture robust_capture = { .size = 5, .mutexes = robust_mutexes };
+
+	/* Capture owns robust mutexes */
+	robust_capture.thread = thread;
+	do {
+		/* Capture any robust mutexes owned by the thread */
+		robust_capture.count = 0;
+		osStatus_t os_status = osKernelResourceForEach(osResourceRobustMutex, osCaptureOwnedRobustMutexes, &robust_capture);
+		if (os_status != osOK)
+			abort();
+
+		/* Now release the robust mutexes */
+		for (size_t i = 0; i < robust_capture.count; ++i) {
+			while (osMutexGetOwner(robust_capture.mutexes[i]) == thread) {
+				os_status = osMutexRobustRelease(robust_capture.mutexes[i], thread);
+				if (os_status != osOK)
+					return os_status;
+			}
+		}
+
+	} while (robust_capture.count == robust_capture.size);
+
+	/* Done at last */
 	return osOK;
 }
 
@@ -134,8 +168,8 @@ static void osThreadReaper(void *context)
 				struct rtos_thread *thread;
 				while ((thread = list_pop_entry(&reap_list, struct rtos_thread, resource_node)) != 0) {
 
-					/* Release any robust mutexes owned by the thread */
-					osStatus_t os_status = osKernelResourceForEach(osResourceRobustMutex, osReleaseOwnRobustMutex, thread);
+					/* Release any owned robust mutexes */
+					os_status = osReleaseRobustMutex(thread);
 					if (os_status != osOK)
 						abort();
 
@@ -297,7 +331,7 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void *argument, const osThreadAttr
 
 	/* Assemble the scheduler task descriptor */
 	struct task_descriptor desc;
-	strncpy(desc.name, (attr->name ? attr->name : "rtos-toolkit"), TASK_NAME_LEN);
+	strncpy(desc.name, (attr->name ? attr->name : ""), TASK_NAME_LEN - 1);
 	desc.entry_point = osSchedulerTaskEntryPoint;
 	desc.exit_handler = osSchedulerTaskExitHandler;
 	desc.context = new_thread;
@@ -353,7 +387,7 @@ const char *osThreadGetName(osThreadId_t thread_id)
 
 	/* Return the name */
 	struct task *task = ((struct rtos_thread *)thread_id)->stack;
-	return task->name;
+	return strlen(task->name) > 0 ? task->name : 0;
 }
 
 osThreadId_t osThreadGetId(void)
@@ -666,8 +700,8 @@ osStatus_t osThreadJoin(osThreadId_t thread_id)
 	if (os_status != osOK)
 		return os_status;
 
-	/* Release any robust mutexes owned by the thread, do this early before the reaper */
-	os_status = osKernelResourceForEach(osResourceRobustMutex, osReleaseOwnRobustMutex, thread);
+	/* Release any robust mutexes owned by the thread */
+	os_status = osReleaseRobustMutex(thread);
 	if (os_status != osOK)
 		return os_status;
 
@@ -807,6 +841,11 @@ uint32_t osThreadFlagsSet(osThreadId_t thread_id, uint32_t flags)
 
 uint32_t osThreadFlagsClear(uint32_t flags)
 {
+	/* Spec is sort of broken as event flags can be cleared in a ISR but not thread flags */
+	osStatus_t os_status = osKernelContextIsValid(false, 0);
+	if (os_status != osOK)
+		return os_status;
+
 	/* Always clear the current thread flags */
 	struct rtos_thread *thread = osThreadGetId();
 	if (!thread)
@@ -832,6 +871,11 @@ uint32_t osThreadFlagsWait(uint32_t flags, uint32_t options, uint32_t timeout)
 	/* Range check the flags */
 	if (flags & osFlagsError)
 		return osErrorParameter;
+
+	/* Spec is sort of broken as event flags can be cleared in a ISR but not thread flags */
+	osStatus_t os_status = osKernelContextIsValid(false, 0);
+	if (os_status != osOK)
+		return os_status;
 
 	/* We always wait on the current thread  */
 	struct rtos_thread *thread = osThreadGetId();
