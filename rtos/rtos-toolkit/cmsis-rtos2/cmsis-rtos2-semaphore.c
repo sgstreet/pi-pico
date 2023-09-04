@@ -23,7 +23,7 @@ __weak void _rtos2_release_semaphore(struct rtos_semaphore *semaphore)
 
 osSemaphoreId_t osSemaphoreNew(uint32_t max_count, uint32_t initial_count, const osSemaphoreAttr_t *attr)
 {
-	const osSemaphoreAttr_t default_attr = { .name = "semaphore" };
+	const osSemaphoreAttr_t default_attr = { .name = "" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -82,7 +82,7 @@ const char *osSemaphoreGetName(osSemaphoreId_t semaphore_id)
 	struct rtos_semaphore *semaphore = semaphore_id;
 
 	/* Return the name */
-	return semaphore->name;
+	return strlen(semaphore->name) > 0 ? semaphore->name : 0;
 }
 
 osStatus_t osSemaphoreAcquire(osSemaphoreId_t semaphore_id, uint32_t timeout)

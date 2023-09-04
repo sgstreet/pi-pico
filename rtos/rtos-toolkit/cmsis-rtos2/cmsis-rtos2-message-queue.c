@@ -22,7 +22,7 @@ __weak void _rtos2_release_message_queue(struct rtos_message_queue *message_queu
 
 osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, const osMessageQueueAttr_t *attr)
 {
-	const osMessageQueueAttr_t default_attr = { .name = "message-queue" };
+	const osMessageQueueAttr_t default_attr = { .name = "" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -121,7 +121,7 @@ const char *osMessageQueueGetName(osMessageQueueId_t mq_id)
 	struct rtos_message_queue *queue = mq_id;
 
 	/* Return the name */
-	return queue->name;
+	return strlen(queue->name) > 0 ? queue->name : 0;
 }
 
 osStatus_t osMessageQueuePut(osMessageQueueId_t mq_id, const void *msg_ptr, uint8_t msg_prio, uint32_t timeout)

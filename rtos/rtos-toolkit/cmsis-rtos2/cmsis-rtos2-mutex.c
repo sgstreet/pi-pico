@@ -23,7 +23,7 @@ __weak void _rtos2_release_mutex(struct rtos_mutex *mutex)
 
 osMutexId_t osMutexNew(const osMutexAttr_t *attr)
 {
-	const osMutexAttr_t default_attr = { .name = "mutex" };
+	const osMutexAttr_t default_attr = { .name = "" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -81,7 +81,7 @@ const char *osMutexGetName(osMutexId_t mutex_id)
 	struct rtos_mutex *mutex = mutex_id;
 
 	/* Return the name */
-	return mutex->name;
+	return strlen(mutex->name) > 0 ? mutex->name : 0;
 }
 
 osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)

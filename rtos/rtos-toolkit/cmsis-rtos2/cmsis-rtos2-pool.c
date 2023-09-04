@@ -22,7 +22,7 @@ __weak void _rtos2_pool_release(void *ptr)
 
 osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, const osMemoryPoolAttr_t *attr)
 {
-	const osMemoryPoolAttr_t default_attr = { .name = "memory-pool" };
+	const osMemoryPoolAttr_t default_attr = { .name = "" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -113,7 +113,7 @@ const char *osMemoryPoolGetName (osMemoryPoolId_t mp_id)
 	struct rtos_memory_pool *pool = mp_id;
 
 	/* Lots of work for a pointer */
-	return pool->name;
+	return strlen(pool->name) > 0 ? pool->name : 0;
 }
 
 void *osMemoryPoolAlloc (osMemoryPoolId_t mp_id, uint32_t timeout)

@@ -102,7 +102,7 @@ static void osTimerThreadInit(void)
 
 osTimerId_t osTimerNew (osTimerFunc_t func, osTimerType_t type, void *argument, const osTimerAttr_t *attr)
 {
-	const osTimerAttr_t default_attr = { .name = "timer" };
+	const osTimerAttr_t default_attr = { .name = "" };
 
 	/* Ensure the timer function is valid */
 	if (!func)
@@ -166,7 +166,7 @@ const char *osTimerGetName (osTimerId_t timer_id)
 	struct rtos_timer *timer = timer_id;
 
 	/* Return the name */
-	return timer->name;
+	return strlen(timer->name) > 0 ? timer->name : 0;
 }
 
 osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks)

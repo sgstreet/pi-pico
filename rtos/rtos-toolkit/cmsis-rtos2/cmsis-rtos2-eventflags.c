@@ -23,7 +23,7 @@ __weak void _rtos2_release_eventflags(struct rtos_eventflags *eventflags)
 
 osEventFlagsId_t osEventFlagsNew(const osEventFlagsAttr_t *attr)
 {
-	const osEventFlagsAttr_t default_attr = { .name = "event-flags" };
+	const osEventFlagsAttr_t default_attr = { .name = "" };
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -82,7 +82,7 @@ const char *osEventFlagsGetName(osEventFlagsId_t ef_id)
 	struct rtos_eventflags *eventflags= ef_id;
 
 	/* Return the name */
-	return eventflags->name;
+	return strlen(eventflags->name) > 0 ? eventflags->name : 0;
 }
 
 uint32_t osEventFlagsSet(osEventFlagsId_t ef_id, uint32_t flags)
