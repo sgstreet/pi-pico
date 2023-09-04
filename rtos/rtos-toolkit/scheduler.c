@@ -850,7 +850,6 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 
 		/* Save the frame and clear the core */
 		task->psp = frame;
-		task->psp = frame;
 		task->core = UINT32_MAX;
 
 		/* Need special handling for the running task */
@@ -858,8 +857,9 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 
 			/* No switch if scheduler is locked */
 			if (scheduler->locked < 0) {
+				task->core = scheduler_current_core();
 				scheduler_spin_unlock();
-				return frame;
+				return task->psp;
 			}
 
 			/* Force the running task to complete for the processor */
