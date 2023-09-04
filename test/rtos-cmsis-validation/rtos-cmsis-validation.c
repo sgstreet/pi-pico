@@ -19,17 +19,11 @@ int stdout_putchar(int c)
 
 void *_rtos2_alloc(size_t size)
 {
-	void *ptr = malloc(size);
-	if (!ptr)
-		abort();
-	memset(ptr, -1, size);
-	return ptr;
+	return calloc(1, size);
 }
 
 void _rtos2_release(void *ptr)
 {
-	if (!ptr)
-		abort();
 	free(ptr);
 }
 

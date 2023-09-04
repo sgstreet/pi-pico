@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2022-2023 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -19,15 +19,11 @@
 #ifndef RV2_CONFIG_H__
 #define RV2_CONFIG_H__
 
-//-------- <<< Use Configuration Wizard in Context Menu >>> --------------------
+#include <rtos/rtos.h>
 
-#define THREAD_STACK_MEM_SIZE 808
-#define THREAD_CB_MEM_SIZE 768
-#define EVENTFLAGS_CB_MEM_SIZE 308
-#define MUTEX_CB_MEM_SIZE 308
-#define SEMAPHORE_CB_MEM_SIZE 308
-#define MEMORYPOOL_CB_MEM_SIZE 352
-#define MESSAGEQUEUE_CB_MEM_SIZE 696
+#define THREAD_STACK_MEM_SIZE 512
+
+//-------- <<< Use Configuration Wizard in Context Menu >>> --------------------
 
 // <h> CMSIS-RTOS2 Test Suite Configuration
 //   <o>Test Runner Thread Stack size <128-16384>
@@ -40,19 +36,67 @@
 // <i> Default: 1000
 #define RTOS2_TICK_FREQ                   1000
 
-// <h> Object Implementation Specific Configuration
+// <h> Object Implementation Specifics
 // <o> Maximum Thread Flags
 // <i> Maximum number of Thread Flags available per Thread object
+// <i> Default: 31
 #define MAX_THREADFLAGS_CNT               31
+
 // <o> Maximum Event Flags
 // <i> Maximum number of Event Flags available per Event Flags object
+// <i> Default: 31
 #define MAX_EVENTFLAGS_CNT                31
+
 // <o> Maximum Mutex Locks
 // <i> Maximum number of recursive Mutex locks per Mutex object
+// <i> Default: 255
 #define MAX_MUTEX_LOCK_CNT                255
+
 // <o> Maximum Semaphore Tokens
 // <i> Maximum number of available tokens per Semaphore object
+// <i> Default: 255
 #define MAX_SEMAPHORE_TOKEN_CNT           255
+
+//   <e0> Define Object Sizes
+//   <i> Define the sizes of object control blocks.
+//   <i> Default: 0
+#define DEFINE_OBJECT_SIZES               1
+
+//   <o> Thread Object Size
+//   <i> Define the size of the thread object control block.
+//   <i> Default: 200
+#define THREAD_OBJECT_SIZE                sizeof(struct rtos_thread)
+
+//   <o> Timer Object Size
+//   <i> Define the size of the timer object control block.
+//   <i> Default: 200
+#define TIMER_OBJECT_SIZE                 sizeof(struct rtos_timer)
+
+//   <o> Event Flags Object Size
+//   <i> Define the size of the event flags object control block.
+//   <i> Default: 200
+#define EVENT_FLAGS_OBJECT_SIZE           sizeof(struct rtos_eventflags)
+
+//   <o> Mutex Object Size
+//   <i> Define the size of the mutex object control block.
+//   <i> Default: 200
+#define MUTEX_OBJECT_SIZE                 sizeof(struct rtos_mutex)
+
+//   <o> Semaphore Object Size
+//   <i> Define the size of the semaphore object control block.
+//   <i> Default: 200
+#define SEMAPHORE_OBJECT_SIZE             sizeof(struct rtos_semaphore)
+
+//   <o> Memory Pool Object Size
+//   <i> Define the size of the memory pool object control block.
+//   <i> Default: 200
+#define MEMORY_POOL_OBJECT_SIZE           sizeof(struct rtos_memory_pool)
+
+//   <o> Message Queue Object Size
+//   <i> Define the size of the message queue object control block.
+//   <i> Default: 200
+#define MESSAGE_QUEUE_OBJECT_SIZE         sizeof(struct rtos_message_queue)
+//   </e>
 // </h>
 
 // <h> Disable Test Cases
@@ -112,26 +156,27 @@
 //     <q16>TC_osThreadYield_1
 //     <q17>TC_osThreadSuspend_1
 //     <q18>TC_osThreadResume_1
-//     <q19>TC_osThreadDetach_1
-//     <q20>TC_osThreadDetach_2
-//     <q21>TC_osThreadJoin_1
-//     <q22>TC_osThreadJoin_2
-//     <q23>TC_osThreadJoin_3
-//     <q24>TC_osThreadExit_1
-//     <q25>TC_osThreadTerminate_1
-//     <q26>TC_osThreadGetStackSize_1
-//     <q27>TC_osThreadGetStackSpace_1
-//     <q28>TC_osThreadGetCount_1
-//     <q29>TC_osThreadEnumerate_1
-//     <q30>TC_ThreadNew
-//     <q31>TC_ThreadMultiInstance
-//     <q32>TC_ThreadTerminate
-//     <q33>TC_ThreadRestart
-//     <q34>TC_ThreadPriorityExec
-//     <q35>TC_ThreadYield
-//     <q36>TC_ThreadSuspendResume
-//     <q37>TC_ThreadReturn
-//     <q38>TC_ThreadAllocation
+//     <q19>TC_osThreadResume_2
+//     <q20>TC_osThreadDetach_1
+//     <q21>TC_osThreadDetach_2
+//     <q22>TC_osThreadJoin_1
+//     <q23>TC_osThreadJoin_2
+//     <q24>TC_osThreadJoin_3
+//     <q25>TC_osThreadExit_1
+//     <q26>TC_osThreadTerminate_1
+//     <q27>TC_osThreadGetStackSize_1
+//     <q28>TC_osThreadGetStackSpace_1
+//     <q29>TC_osThreadGetCount_1
+//     <q30>TC_osThreadEnumerate_1
+//     <q31>TC_ThreadNew
+//     <q32>TC_ThreadMultiInstance
+//     <q33>TC_ThreadTerminate
+//     <q34>TC_ThreadRestart
+//     <q35>TC_ThreadPriorityExec
+//     <q36>TC_ThreadYield
+//     <q37>TC_ThreadSuspendResume
+//     <q38>TC_ThreadReturn
+//     <q39>TC_ThreadAllocation
 #define TC_OSTHREAD_EN                    1
 #define TC_OSTHREADNEW_1_EN               1
 #define TC_OSTHREADNEW_2_EN               1
@@ -142,15 +187,16 @@
 #define TC_OSTHREADNEW_7_EN               1
 #define TC_OSTHREADGETNAME_1_EN           1
 #define TC_OSTHREADGETID_1_EN             1
-#define TC_OSTHREADGGETSTATE_1_EN         1
-#define TC_OSTHREADGGETSTATE_2_EN         1
-#define TC_OSTHREADGGETSTATE_3_EN         1
+#define TC_OSTHREADGETSTATE_1_EN          1
+#define TC_OSTHREADGETSTATE_2_EN          1
+#define TC_OSTHREADGETSTATE_3_EN          1
 #define TC_OSTHREADSETPRIORITY_1_EN       1
 #define TC_OSTHREADSETPRIORITY_2_EN       1
 #define TC_OSTHREADGETPRIORITY_1_EN       1
 #define TC_OSTHREADYIELD_1_EN             1
 #define TC_OSTHREADSUSPEND_1_EN           1
 #define TC_OSTHREADRESUME_1_EN            1
+#define TC_OSTHREADRESUME_2_EN            0
 #define TC_OSTHREADDETACH_1_EN            1
 #define TC_OSTHREADDETACH_2_EN            1
 #define TC_OSTHREADJOIN_1_EN              1
@@ -207,19 +253,21 @@
 //     <q03>TC_osTimerNew_3
 //     <q04>TC_osTimerGetName_1
 //     <q05>TC_osTimerStart_1
-//     <q06>TC_osTimerStop_1
-//     <q07>TC_osTimerStop_2
-//     <q08>TC_osTimerIsRunning_1
-//     <q09>TC_osTimerDelete_1
-//     <q10>TC_TimerAllocation
-//     <q11>TC_TimerOneShot
-//     <q12>TC_TimerPeriodic
+//     <q06>TC_osTimerStart_2
+//     <q07>TC_osTimerStop_1
+//     <q08>TC_osTimerStop_2
+//     <q09>TC_osTimerIsRunning_1
+//     <q10>TC_osTimerDelete_1
+//     <q11>TC_TimerAllocation
+//     <q12>TC_TimerOneShot
+//     <q13>TC_TimerPeriodic
 #define TC_OSTIMER_EN                     1
 #define TC_OSTIMERNEW_1_EN                1
 #define TC_OSTIMERNEW_2_EN                1
 #define TC_OSTIMERNEW_3_EN                1
 #define TC_OSTIMERGETNAME_1_EN            1
 #define TC_OSTIMERSTART_1_EN              1
+#define TC_OSTIMERSTART_2_EN              1
 #define TC_OSTIMERSTOP_1_EN               1
 #define TC_OSTIMERSTOP_2_EN               1
 #define TC_OSTIMERISRUNNING_1_EN          1
@@ -258,7 +306,7 @@
 #define TC_EVENTFLAGSINTERTHREADS_EN      1
 #define TC_EVENTFLAGSCHECKTIMEOUT_EN      1
 #define TC_EVENTFLAGSWAITTIMEOUT_EN       1
-#define TC_EVENTFLAGSDELETEWAITING_EN     1
+#define TC_EVENTFLAGSDELETEWAITING_EN     0
 //   </e>
 
 //   <e0>Mutex Management

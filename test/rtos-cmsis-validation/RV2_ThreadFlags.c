@@ -439,8 +439,7 @@ void TC_ThreadFlagsWaitTimeout (void) {
 */
 void TC_ThreadFlagsCheckTimeout (void) {
 #if (TC_THREADFLAGSCHECKTIMEOUT_EN)
-//  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityBelowNormal, 0U, 0U};
-  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityAboveNormal, 0U, 0U};
+  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityBelowNormal, 0U, 0U};
   osThreadId_t id;
   uint32_t flags;
   uint32_t t_10;
@@ -543,26 +542,22 @@ void TC_ThreadFlagsInterrupts (void) {
     Isr_u32 = 0U;
     ASSERT_TRUE (osThreadFlagsSet (ThreadId, 0x00000001U) == 0x00000001U);
     SetPendingIRQ(IRQ_A);
-//    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
-    ASSERT_TRUE (Isr_u32 == 0x00000001U);
+    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
 
     Isr_s32 = 2; /* Test: osThreadFlagsWait (no timeout) */
     Isr_u32 = 0U;
     SetPendingIRQ(IRQ_A);
-//    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
-    ASSERT_TRUE (Isr_u32 == (uint32_t)osFlagsErrorResource);
+    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
 
     Isr_s32 = 3; /* Test: osThreadFlagsWait (with timeout) */
     Isr_u32 = 0U;
     SetPendingIRQ(IRQ_A);
-//    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
-    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorParameter);
+    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
 
     Isr_s32 = 4; /* Test: osThreadFlagsWait (with infinite timeout) */
     Isr_u32 = 0U;
     SetPendingIRQ(IRQ_A);
-//    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
-    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorParameter);
+    ASSERT_TRUE (Isr_u32 == (uint32_t)osErrorISR);
 
     /* Clear all main thread thread flags */
     osThreadFlagsClear (THREAD_FLAGS_MSK);

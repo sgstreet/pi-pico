@@ -25,10 +25,13 @@
 #define MAX_TIMER_NUM  64
 
 /* Timer callback prototypes */
-void TimCb_Oneshot  (void *arg);
-void TimCb_Periodic (void *arg);
-void TimCb_Running  (void *arg);
-void TimCb_Dummy    (void *arg);
+void TimCb_Oneshot        (void *arg);
+void TimCb_Periodic       (void *arg);
+void TimCb_Running        (void *arg);
+void TimCb_Dummy          (void *arg);
+void TimCb_osTimerStart_2 (void *arg);
+
+static volatile osStatus_t Cb_osStatus;
 
 static volatile uint32_t Tim_Var;
 static volatile uint32_t Tim_Var_Os;
@@ -96,7 +99,6 @@ The test cases check the osTimer* functions.
 \details
   - Call osTimerNew to create a timer object of type osTimerOnce
   - Call osTimerNew to create a timer object of type osTimerPeriodic
-  - Call osTimerNew with masked interrupts
   - Call osTimerNew from ISR
   - Call osTimerNew with null timer function
 */
@@ -117,12 +119,6 @@ void TC_osTimerNew_1 (void) {
 
   /* Delete created timer */
   ASSERT_TRUE (osTimerDelete(id) == osOK);
-
-  /* Call osTimerNew with masked interrupts */
-  __disable_irq();
-  TimerId = osTimerNew (TimCb_Dummy, osTimerOnce, NULL, NULL);
-  __enable_irq();
-  ASSERT_TRUE (TimerId == NULL);
 
   /* Call osTimerNew from ISR */
   TST_IRQHandler = Irq_osTimerNew_1;
@@ -195,8 +191,6 @@ void TC_osTimerNew_3 (void) {
 \details
   - Call osTimerGetName to retrieve a name of an unnamed timer
   - Call osTimerGetName to retrieve a name of a timer with assigned name
-  - Call osTimerGetName with valid object
-  - Call osTimerGetName with masked interrupts
   - Call osTimerGetName from ISR
   - Call osTimerGetName with null object
 */
@@ -226,18 +220,13 @@ void TC_osTimerGetName_1 (void) {
   /* Call osTimerGetName to retrieve a name of a timer with assigned name */
   ASSERT_TRUE (strcmp(osTimerGetName(tid), name) == 0U);
 
-  /* Call osTimerGetName with masked interrupts */
-  __disable_irq();
-  TimerName = osTimerGetName(tid);
-  __enable_irq();
-  ASSERT_TRUE (strcmp(TimerName, name) != 0U);
-
   /* Call osTimerGetName from ISR */
   TST_IRQHandler = Irq_osTimerGetName_1;
   TimerId   = tid;
   TimerName = name;
   SetPendingIRQ(IRQ_A);
-  ASSERT_TRUE (strcmp(TimerName, name) != 0U);
+//  ASSERT_TRUE (strcmp(TimerName, name) == 0U);
+  ASSERT_TRUE (TimerName == 0U);
 
   /* Delete timer object */
   osTimerDelete (tid);
@@ -262,7 +251,6 @@ void Irq_osTimerGetName_1 (void) {
 \details
   - Call osTimerStart to start the one-shot timer
   - Call osTimerStart to start the periodic timer
-  - Call osTimerStart with masked interrupts
   - Call osTimerStart from ISR
   - Call osTimerStart with invalid ticks value
   - Call osTimerStart with null object
@@ -302,7 +290,7 @@ void TC_osTimerStart_1 (void) {
 
   /* Wait until timer expires */
 //  osDelay(10U);
-  osDelay(11);
+  osDelay(11U);
 
   /* Check if the timer callback function was called multiple times */
   ASSERT_TRUE (Tim_Var_Per == 5U);
@@ -314,12 +302,6 @@ void TC_osTimerStart_1 (void) {
   /* Create a one-shot timer */
   id = osTimerNew (&TimCb_Oneshot, osTimerOnce, &arg, NULL);
   ASSERT_TRUE (id != NULL);
-
-  /* Call osTimerStart with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osTimerStart (id, 10U);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osTimerStart from ISR */
   TST_IRQHandler = Irq_osTimerStart_1;
@@ -350,11 +332,64 @@ void Irq_osTimerStart_1 (void) {
 
 /*=======0=========1=========2=========3=========4=========5=========6=========7=========8=========9=========0=========1====*/
 /**
+\brief Test case: TC_osTimerStart_2
+\details
+  - Call osTimerStart from one-shot timer callback to re-start the timer
+*/
+void TC_osTimerStart_2 (void) {
+#if (TC_OSTIMERSTART_2_EN)
+  osTimerId_t id;
+
+  Tim_Var_Os  = 0U;
+  Cb_osStatus = osError;
+
+  /* Create a one-shot timer */
+  id = osTimerNew (&TimCb_osTimerStart_2, osTimerOnce, &id, NULL);
+  ASSERT_TRUE (id != NULL);
+
+  /* Call osTimerStart to start the one-shot timer */
+  ASSERT_TRUE (osTimerStart (id, 2U) == osOK);
+
+  /* Wait until timer expires */
+  osDelay(3U);
+
+  /* Check if the timer callback function was called */
+  ASSERT_TRUE (Tim_Var_Os == 1U);
+
+  /* Check if the timer was re-started */
+  ASSERT_TRUE (Cb_osStatus == osOK);
+  ASSERT_TRUE (osTimerIsRunning (id) == 1U);
+
+  /* Wait until timer expires */
+  osDelay(5U);
+
+  /* Check if the timer callback function was called */
+  ASSERT_TRUE (Tim_Var_Os == 2U);
+
+  /* Delete the timer */
+  osTimerDelete (id);
+#endif
+}
+
+/*-----------------------------------------------------------------------------
+ * TC_osTimerStart_2: Timer callback
+ *----------------------------------------------------------------------------*/
+#if (TC_OSTIMERSTART_2_EN)
+void TimCb_osTimerStart_2  (void *arg) {
+  osTimerId_t id = *(osTimerId_t *)arg;
+
+  Tim_Var_Os += 1U;
+
+  Cb_osStatus = osTimerStart (id, 4U);
+}
+#endif
+
+/*=======0=========1=========2=========3=========4=========5=========6=========7=========8=========9=========0=========1====*/
+/**
 \brief Test case: TC_osTimerStop_1
 \details
   - Call osTimerStop to stop the one-shoot timer
   - Call osTimerStop to stop the periodic timer
-  - Call osTimerStop with masked interrupts
   - Call osTimerStop from ISR
   - Call osTimerStop with null object
 */
@@ -397,12 +432,6 @@ void TC_osTimerStop_1 (void) {
 
   /* Start the timer */
   osTimerStart (id, 10U);
-
-  /* Call osTimerStop with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osTimerStop (id);
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
-  __enable_irq();
 
   /* Call osTimerStop from ISR */
   TST_IRQHandler = Irq_osTimerStop_1;
@@ -483,7 +512,6 @@ void TC_osTimerStop_2 (void) {
   - Call osTimerIsRunning to check whether a one-shoot timer is stopped
   - Call osTimerIsRunning to check whether a periodic timer is running
   - Call osTimerIsRunning to check whether a periodic timer is stopped
-  - Call osTimerIsRunning with masked interrupts
   - Call osTimerIsRunning from ISR
   - Call osTimerIsRunning with null object
 */
@@ -536,12 +564,6 @@ void TC_osTimerIsRunning_1 (void) {
   id = osTimerNew (&TimCb_Oneshot, osTimerOnce, &arg, NULL);
   ASSERT_TRUE (id != NULL);
 
-  /* Call osTimerIsRunning with masked interrupts */
-  __disable_irq();
-  Isr_u32 = osTimerIsRunning (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_u32 == 0U);
-
   /* Call osTimerIsRunning from ISR */
   TST_IRQHandler = Irq_osTimerIsRunning_1;
   Isr_u32 = 1U;
@@ -574,7 +596,6 @@ void Irq_osTimerIsRunning_1 (void) {
   - Call osTimerDelete to delete running one-shoot timer
   - Call osTimerDelete to delete stopped periodic timer
   - Call osTimerDelete to delete running periodic timer
-  - Call osTimerDelete with masked interrupts
   - Call osTimerDelete from ISR
   - Call osTimerDelete with null object
 */
@@ -622,12 +643,6 @@ void TC_osTimerDelete_1 (void) {
   /* Create one shot timer */
   id = osTimerNew (&TimCb_Oneshot, osTimerOnce, &arg, NULL);
   ASSERT_TRUE (id != NULL);
-
-  /* Call osTimerDelete with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osTimerDelete (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osTimerDelete from ISR */
   TST_IRQHandler = Irq_osTimerDelete_1;

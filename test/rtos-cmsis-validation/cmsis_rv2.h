@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2022-2023 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -82,6 +82,7 @@ extern void TC_osThreadGetPriority_1      (void);
 extern void TC_osThreadYield_1            (void);
 extern void TC_osThreadSuspend_1          (void);
 extern void TC_osThreadResume_1           (void);
+extern void TC_osThreadResume_2           (void);
 extern void TC_osThreadDetach_1           (void);
 extern void TC_osThreadDetach_2           (void);
 extern void TC_osThreadJoin_1             (void);
@@ -121,6 +122,7 @@ extern void TC_osTimerNew_2               (void);
 extern void TC_osTimerNew_3               (void);
 extern void TC_osTimerGetName_1           (void);
 extern void TC_osTimerStart_1             (void);
+extern void TC_osTimerStart_2             (void);
 extern void TC_osTimerStop_1              (void);
 extern void TC_osTimerStop_2              (void);
 extern void TC_osTimerIsRunning_1         (void);

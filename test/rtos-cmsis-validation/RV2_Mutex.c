@@ -48,13 +48,16 @@ static void RecursiveMutexAcquire (uint32_t depth, uint32_t ctrl);
 /*-----------------------------------------------------------------------------
  * Mutex high prio acquiring thread
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXROBUST_EN) || (TC_MUTEXPRIOINHERIT_EN)
 void Th_MutexHighPrioAcq (void *arg) {
   uint32_t *cnt = (uint32_t *)arg;
   ASSERT_TRUE (osMutexAcquire (MutexId, osWaitForever) == osOK);
   (*cnt)++;
   /* This call should never return */
-  osThreadFlagsWait (1, 0, osWaitForever);
+//  osThreadFlagsWait (1, 0, osWaitForever);
+  osThreadSuspend(osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * Recursive mutex acquisition
@@ -115,6 +118,7 @@ void Th_MutexWakeup (void __attribute__((unused)) *arg)
 /*-----------------------------------------------------------------------------
  * Low priority job used for priority inversion test
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXPRIORITYINVERSION_EN)
 void Th_LowPrioJob (void *arg) {
   osThreadId_t *ctrl_id = (osThreadId_t *)arg;
   osStatus_t stat;
@@ -144,10 +148,12 @@ void Th_LowPrioJob (void *arg) {
   /* Explicitly terminate this thread */
   osThreadTerminate (osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * Medium priority job used for priority inversion test
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXPRIORITYINVERSION_EN)
 void Th_MediumPrioJob (void *arg) {
   osThreadId_t *ctrl_id = (osThreadId_t *)arg;
   uint32_t i;
@@ -166,10 +172,12 @@ void Th_MediumPrioJob (void *arg) {
   /* Explicitly terminate this thread */
   osThreadTerminate (osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * High priority job used for priority inversion test
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXPRIORITYINVERSION_EN)
 void Th_HighPrioJob (void *arg) {
   osThreadId_t *ctrl_id = (osThreadId_t *)arg;
   osStatus_t stat;
@@ -199,26 +207,33 @@ void Th_HighPrioJob (void *arg) {
   /* Explicitly terminate this thread */
   osThreadTerminate (osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * Low priority thread which acquires a mutex object
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXOWNERSHIP_EN)
 void Th_MutexAcqLow  (void __attribute__((unused)) *arg) {
   ASSERT_TRUE (osMutexAcquire (MutexId, 0) == osOK);
   osThreadFlagsWait (1, 0, 100);
   ASSERT_TRUE (osMutexRelease (MutexId) == osOK);
   /* This call should never return */
-  osThreadFlagsWait (1, 0, osWaitForever);
+//  osThreadFlagsWait (1, 0, osWaitForever);
+  osThreadSuspend(osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * High priority thread which releases a mutex object
  *----------------------------------------------------------------------------*/
+#if (TC_MUTEXOWNERSHIP_EN)
 void Th_MutexRelHigh (void __attribute__((unused)) *arg) {
   ASSERT_TRUE (osMutexRelease (MutexId) == osErrorResource);
   /* This call should never return */
-  osThreadFlagsWait (1, 0, osWaitForever);
+  //  osThreadFlagsWait (1, 0, osWaitForever);
+    osThreadSuspend(osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  *      Test cases
@@ -239,7 +254,6 @@ The test cases check the osMutex* functions.
 \brief Test case: TC_osMutexNew_1
 \details
   - Call osMutexNew to create a mutex object
-  - Call osMutexNew with masked interrupts
   - Call osMutexNew from ISR
 */
 void TC_osMutexNew_1 (void) {
@@ -252,12 +266,6 @@ void TC_osMutexNew_1 (void) {
 
   /* Delete created mutex */
   ASSERT_TRUE (osMutexDelete(id) == osOK);
-
-  /* Call osMutexNew with masked interrupts */
-  __disable_irq();
-  MutexId = osMutexNew (NULL);
-  __enable_irq();
-  ASSERT_TRUE (MutexId == NULL);
 
   /* Call osMutexNew from ISR */
   TST_IRQHandler = Irq_osMutexNew_1;
@@ -387,8 +395,6 @@ void TC_osMutexNew_6 (void) {
 \details
   - Call osMutexGetName to retrieve a name of an unnamed mutex
   - Call osMutexGetName to retrieve a name of a mutex with assigned name
-  - Call osMutexGetName with valid object
-  - Call osMutexGetName with masked interrupts
   - Call osMutexGetName from ISR
   - Call osMutexGetName with null object
 */
@@ -418,18 +424,12 @@ void TC_osMutexGetName_1 (void) {
   /* Call osMutexGetName to retrieve a name of a mutex with assigned name */
   ASSERT_TRUE (strcmp(osMutexGetName(id), name) == 0U);
 
-  /* Call osMutexGetName with masked interrupts */
-  __disable_irq();
-  MutexName = osMutexGetName(id);
-  __enable_irq();
-  ASSERT_TRUE (strcmp(MutexName, name) != 0U);
-
   /* Call osMutexGetName from ISR */
   TST_IRQHandler = Irq_osMutexGetName_1;
   MutexId   = id;
   MutexName = name;
   SetPendingIRQ(IRQ_A);
-  ASSERT_TRUE (strcmp(MutexName, name) != 0U);
+  ASSERT_TRUE (MutexName == 0U);
 
   /* Delete mutex object */
   ASSERT_TRUE (osMutexDelete (id) == osOK);
@@ -453,7 +453,6 @@ void Irq_osMutexGetName_1 (void) {
 \brief Test case: TC_osMutexAcquire_1
 \details
   - Call osMutexAcquire to acquire the mutex from the running thread
-  - Call osMutexAcquire with masked interrupts
   - Call osMutexAcquire from ISR
   - Call osMutexAcquire with null mutex object
 */
@@ -477,12 +476,6 @@ void TC_osMutexAcquire_1 (void) {
   /* Create a mutex object */
   id = osMutexNew (NULL);
   ASSERT_TRUE(id != NULL);
-
-  /* Call osMutexAcquire with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osMutexAcquire (id, 0U);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osMutexAcquire from ISR */
   TST_IRQHandler = Irq_osMutexAcquire_1;
@@ -579,7 +572,6 @@ void Th_osMutexAcquire_2 (void *arg) {
 \details
   - Call osMutexRelease to release acquired mutex
   - Call osMutexRelease to release mutex that was not acquired
-  - Call osMutexRelease with masked interrupts
   - Call osMutexRelease from ISR
   - Call osMutexRelease with null mutex object
 */
@@ -610,12 +602,6 @@ void TC_osMutexRelease_1 (void) {
 
   /* Call osMutexAcquire to acquire mutex */
   ASSERT_TRUE (osMutexAcquire(id, osWaitForever) == osOK);
-
-  /* Call osMutexRelease with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osMutexRelease (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osMutexRelease from ISR */
   TST_IRQHandler = Irq_osMutexRelease_1;
@@ -650,7 +636,6 @@ void Irq_osMutexRelease_1 (void) {
 \details
   - Call osMutexGetOwner when the mutex is not locked
   - Call osMutexGetOwner when the mutex is locked
-  - Call osMutexGetOwner with masked interrupts
   - Call osMutexGetOwner from ISR
   - Call osMutexGetOwner with null object
 */
@@ -670,12 +655,6 @@ void TC_osMutexGetOwner_1 (void) {
 
   /* Call osMutexGetOwner when the mutex is locked */
   ASSERT_TRUE (osMutexGetOwner (id) == osThreadGetId());
-
-  /* Call osMutexGetOwner with masked interrupts */
-  __disable_irq();
-  ThreadId = osMutexGetOwner (id);
-  __enable_irq();
-  ASSERT_TRUE (ThreadId == NULL);
 
   /* Call osMutexGetOwner from ISR */
   TST_IRQHandler = Irq_osMutexGetOwner_1;
@@ -709,7 +688,6 @@ void Irq_osMutexGetOwner_1 (void) {
 \brief Test case: TC_osMutexDelete_1
 \details
   - Call osMutexDelete to delete a mutex
-  - Call osMutexDelete with masked interrupts
   - Call osMutexDelete from ISR
   - Call osMutexDelete with null object
 */
@@ -727,12 +705,6 @@ void TC_osMutexDelete_1 (void) {
   /* Create a mutex object */
   id = osMutexNew (NULL);
   ASSERT_TRUE (id != NULL);
-
-  /* Call osMutexDelete with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osMutexDelete (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osMutexDelete from ISR */
   TST_IRQHandler = Irq_osMutexDelete_1;

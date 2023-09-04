@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2022-2023 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -18,10 +18,17 @@
 
 #include "cmsis_rv2.h"
 
-//static const osThreadAttr_t tf_main_attr = {
-//  .name       = "TestRunner",
-//  .stack_size = MAIN_THREAD_STACK
-//};
+static const osThreadAttr_t tf_main_attr = {
+  .name          = "TestRunner",
+  .attr_bits     = osThreadDetached,
+  .cb_mem        = NULL,
+  .cb_size       = 0U,
+  .stack_mem     = NULL,
+  .stack_size    = MAIN_THREAD_STACK,
+  .priority      = osPriorityNormal,
+  .tz_module     = 0,
+//  .affinity_mask = 0
+};
 
 /*-----------------------------------------------------------------------------
  *      Init test suite
@@ -88,15 +95,16 @@ static const TEST_CASE TC_List[] = {
   TCD ( TC_osThreadNew_7,                 TC_OSTHREADNEW_7_EN                 ),
   TCD ( TC_osThreadGetName_1,             TC_OSTHREADGETNAME_1_EN             ),
   TCD ( TC_osThreadGetId_1,               TC_OSTHREADGETID_1_EN               ),
-  TCD ( TC_osThreadGetState_1,            TC_OSTHREADGGETSTATE_1_EN           ),
-  TCD ( TC_osThreadGetState_2,            TC_OSTHREADGGETSTATE_2_EN           ),
-  TCD ( TC_osThreadGetState_3,            TC_OSTHREADGGETSTATE_3_EN           ),
+  TCD ( TC_osThreadGetState_1,            TC_OSTHREADGETSTATE_1_EN            ),
+  TCD ( TC_osThreadGetState_2,            TC_OSTHREADGETSTATE_2_EN            ),
+  TCD ( TC_osThreadGetState_3,            TC_OSTHREADGETSTATE_3_EN            ),
   TCD ( TC_osThreadSetPriority_1,         TC_OSTHREADSETPRIORITY_1_EN         ),
   TCD ( TC_osThreadSetPriority_2,         TC_OSTHREADSETPRIORITY_2_EN         ),
   TCD ( TC_osThreadGetPriority_1,         TC_OSTHREADGETPRIORITY_1_EN         ),
   TCD ( TC_osThreadYield_1,               TC_OSTHREADYIELD_1_EN               ),
   TCD ( TC_osThreadSuspend_1,             TC_OSTHREADSUSPEND_1_EN             ),
   TCD ( TC_osThreadResume_1,              TC_OSTHREADRESUME_1_EN              ),
+  TCD ( TC_osThreadResume_2,              TC_OSTHREADRESUME_2_EN              ),
   TCD ( TC_osThreadDetach_1,              TC_OSTHREADDETACH_1_EN              ),
   TCD ( TC_osThreadDetach_2,              TC_OSTHREADDETACH_2_EN              ),
   TCD ( TC_osThreadJoin_1,                TC_OSTHREADJOIN_1_EN                ),
@@ -138,6 +146,7 @@ static const TEST_CASE TC_List[] = {
   TCD ( TC_osTimerNew_3,                  TC_OSTIMERNEW_3_EN                  ),
   TCD ( TC_osTimerGetName_1,              TC_OSTIMERGETNAME_1_EN              ),
   TCD ( TC_osTimerStart_1,                TC_OSTIMERSTART_1_EN                ),
+  TCD ( TC_osTimerStart_2,                TC_OSTIMERSTART_2_EN                ),
   TCD ( TC_osTimerStop_1,                 TC_OSTIMERSTOP_1_EN                 ),
   TCD ( TC_osTimerStop_2,                 TC_OSTIMERSTOP_2_EN                 ),
   TCD ( TC_osTimerIsRunning_1,            TC_OSTIMERISRUNNING_1_EN            ),
@@ -257,22 +266,16 @@ static TEST_SUITE ts = {
 /*-----------------------------------------------------------------------------
  *      CMSIS-RTOS2 Validation Entry
  *----------------------------------------------------------------------------*/
-//int cmsis_rv2 (void) {
-//
-//  /* Initialize CMSIS-RTOS2 */
-//  osKernelInitialize();
-//
-//  /* Create test framework main function as a thread */
-//  osThreadNew((osThreadFunc_t)tf_main, &ts, &tf_main_attr);
-//
-//  /* Start executing the test framework main function */
-//  osKernelStart();
-//
-//  return (0);
-//}
+int cmsis_rv2 (void) {
 
-int cmsis_rv2(void)
-{
-	tf_main(&ts);
-	return 0;
+  /* Initialize CMSIS-RTOS2 */
+  osKernelInitialize();
+
+  /* Create test framework main function as a thread */
+  osThreadNew((osThreadFunc_t)tf_main, &ts, &tf_main_attr);
+
+  /* Start executing the test framework main function */
+  osKernelStart();
+
+  return (0);
 }

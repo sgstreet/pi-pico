@@ -16,7 +16,7 @@
 #include <rtos/rtos-toolkit/scheduler.h>
 
 #define LIBC_LOCK_MARKER 0x89988998
-#define MULTICORE
+//#define MULTICORE
 
 struct __lock
 {

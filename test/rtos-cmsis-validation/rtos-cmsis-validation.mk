@@ -30,7 +30,7 @@ TARGET_OBJ_LIBS += rtos/rtos-toolkit rtos/rtos-toolkit/cmsis-rtos2
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
 CPPFLAGS += -DTF_OUTPUT=1
-CPPFLAGS += -I ${PROJECT_ROOT}/include/cmsis -I ${PROJECT_ROOT}/include/cmsis/rtos2 
+CPPFLAGS += -I${SOURCE_DIR} -I ${PROJECT_ROOT}/include/cmsis -I ${PROJECT_ROOT}/include/cmsis/rtos2 
 LDSCRIPTS := -L${PROJECT_ROOT}/ldscripts -T memory.ld -T regions-flash.ld -T sections.ld
 
 all: ${INSTALL_ROOT}/rtos-cmsis-validation.bin ${INSTALL_ROOT}/rtos-cmsis-validation.elf ${INSTALL_ROOT}/rtos-cmsis-validation.uf2

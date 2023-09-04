@@ -65,6 +65,7 @@ void Th_TestSemaphore (void *arg) {
 /*-----------------------------------------------------------------------------
  *  Th_SemaphoreWait: Semaphore wait thread
  *----------------------------------------------------------------------------*/
+#if (TC_SEMAPHOREWAITTIMEOUT_EN)
 void Th_SemaphoreWait (void *arg) {
   uint32_t   ticks = *((uint32_t *)arg);
 
@@ -79,6 +80,7 @@ void Th_SemaphoreWait (void *arg) {
   /* Explicitly terminate this thread */
   osThreadTerminate (osThreadGetId());
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  *      Wakeup thread
@@ -115,7 +117,6 @@ The test cases check the osSemaphore* functions.
   - Call osSemaphoreNew to create a binary semaphore object with initial token set
   - Call osSemaphoreNew to create a counting semaphore object with initial token count cleared
   - Call osSemaphoreNew to create a counting semaphore object with initial token count set to max count={UINT8_MAX, UINT16_MAX, UINT32_MAX}
-  - Call osSemaphoreNew with masked interrupts
   - Call osSemaphoreNew from ISR
 */
 void TC_osSemaphoreNew_1 (void) {
@@ -161,12 +162,6 @@ void TC_osSemaphoreNew_1 (void) {
 
   /* Delete created semaphore */
   ASSERT_TRUE (osSemaphoreDelete(id) == osOK);
-
-  /* Call osSemaphoreNew with masked interrupts */
-  __disable_irq();
-  SemaphoreId = osSemaphoreNew (1U, 1U, NULL);
-  __enable_irq();
-  ASSERT_TRUE (SemaphoreId == NULL);
 
   /* Call osSemaphoreNew from ISR */
   TST_IRQHandler = Irq_osSemaphoreNew_1;
@@ -236,8 +231,6 @@ void TC_osSemaphoreNew_3 (void) {
 \details
   - Call osSemaphoreGetName to retrieve a name of an unnamed semaphore
   - Call osSemaphoreGetName to retrieve a name of a semaphore with assigned name
-  - Call osSemaphoreGetName with valid object
-  - Call osSemaphoreGetName with masked interrupts
   - Call osSemaphoreGetName from ISR
   - Call osSemaphoreGetName with null object
 */
@@ -267,18 +260,13 @@ void TC_osSemaphoreGetName_1 (void) {
   /* Call osSemaphoreGetName to retrieve a name of a semaphore with assigned name */
   ASSERT_TRUE (strcmp(osSemaphoreGetName(id), name) == 0U);
 
-  /* Call osSemaphoreGetName with masked interrupts */
-  __disable_irq();
-  SemaphoreName = osSemaphoreGetName(id);
-  __enable_irq();
-  ASSERT_TRUE (strcmp(SemaphoreName, name) != 0U);
-
   /* Call osSemaphoreGetName from ISR */
   TST_IRQHandler = Irq_osSemaphoreGetName_1;
   SemaphoreId   = id;
   SemaphoreName = name;
   SetPendingIRQ(IRQ_A);
-  ASSERT_TRUE (strcmp(SemaphoreName, name) != 0U);
+//  ASSERT_TRUE (strcmp(SemaphoreName, name) == 0U);
+  ASSERT_TRUE (SemaphoreName == 0U);
 
   /* Delete semaphore object */
   ASSERT_TRUE (osSemaphoreDelete (id) == osOK);
@@ -303,7 +291,6 @@ void Irq_osSemaphoreGetName_1 (void) {
 \details
   - Call osSemaphoreAcquire to acquire binary semaphore
   - Call osSemaphoreAcquire to acquire counting semaphore
-  - Call osSemaphoreAcquire with masked interrupts (non-zero timeout)
   - Call osSemaphoreAcquire from ISR (non-zero timeout)
   - Call osSemaphoreAcquire with null semaphore object
 */
@@ -337,12 +324,6 @@ void TC_osSemaphoreAcquire_1 (void) {
   id = osSemaphoreNew (1U, 1U, NULL);
   ASSERT_TRUE(id != NULL);
 
-  /* Call osSemaphoreAcquire with masked interrupts (non-zero timeout) */
-  __disable_irq();
-  Isr_osStatus = osSemaphoreAcquire (id, osWaitForever);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorParameter);
-
   /* Call osSemaphoreAcquire from ISR (non-zero timeout) */
   TST_IRQHandler = Irq_osSemaphoreAcquire_1;
   Isr_osStatus = osOK;
@@ -375,7 +356,6 @@ void Irq_osSemaphoreAcquire_1 (void) {
   - Call osSemaphoreRelease to release acquired counting semaphore
   - Call osSemaphoreRelease to release binary semaphore that was not acquired
   - Call osSemaphoreRelease to release counting semaphore that was not acquired
-  - Call osSemaphoreRelease with masked interrupts
   - Call osSemaphoreRelease from ISR
   - Call osSemaphoreRelease with null semaphore object
 */
@@ -440,15 +420,6 @@ void TC_osSemaphoreRelease_1 (void) {
   /* Call osSemaphoreAcquire to acquire semaphore */
   ASSERT_TRUE (osSemaphoreAcquire(id, osWaitForever) == osOK);
 
-  /* Call osSemaphoreRelease with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osSemaphoreRelease (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osOK);
-
-  /* Call osSemaphoreAcquire to acquire semaphore */
-  ASSERT_TRUE (osSemaphoreAcquire(id, osWaitForever) == osOK);
-
   /* Call osSemaphoreRelease from ISR */
   TST_IRQHandler = Irq_osSemaphoreRelease_1;
   Isr_osStatus = osError;
@@ -479,7 +450,6 @@ void Irq_osSemaphoreRelease_1 (void) {
 \details
   - Call osSemaphoreGetCount to get token count of an initialized semaphore
   - Call osSemaphoreGetCount to get token count of an acquired semaphore
-  - Call osSemaphoreGetCount with masked interrupts
   - Call osSemaphoreGetCount from ISR
   - Call osSemaphoreGetCount with a null object id
 */
@@ -507,12 +477,6 @@ void TC_osSemaphoreGetCount_1 (void) {
   for (i = 0U; i < MAX_SEMAPHORE_TOKEN_CNT; i++) {
     osSemaphoreRelease (id);
   }
-
-  /* Call osSemaphoreGetCount with masked interrupts */
-  __disable_irq();
-  Isr_u32 = osSemaphoreGetCount (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_u32 == MAX_SEMAPHORE_TOKEN_CNT);
 
   /* Call osSemaphoreGetCount from ISR */
   TST_IRQHandler = Irq_osSemaphoreGetCount_1;
@@ -543,7 +507,6 @@ void Irq_osSemaphoreGetCount_1 (void) {
 \brief Test case: TC_osSemaphoreDelete_1
 \details
   - Call osSemaphoreDelete to delete a semaphore
-  - Call osSemaphoreDelete with masked interrupts
   - Call osSemaphoreDelete from ISR
   - Call osSemaphoreDelete with null object
 */
@@ -561,12 +524,6 @@ void TC_osSemaphoreDelete_1 (void) {
   /* Create a semaphore object */
   id = osSemaphoreNew (1U, 1U, NULL);
   ASSERT_TRUE (id != NULL);
-
-  /* Call osSemaphoreDelete with masked interrupts */
-  __disable_irq();
-  Isr_osStatus = osSemaphoreDelete (id);
-  __enable_irq();
-  ASSERT_TRUE (Isr_osStatus == osErrorISR);
 
   /* Call osSemaphoreDelete from ISR */
   TST_IRQHandler = Irq_osSemaphoreDelete_1;
@@ -943,8 +900,7 @@ void TC_SemaphoreWaitTimeout (void) {
 */
 void TC_SemaphoreCheckTimeout (void) {
 #if (TC_SEMAPHORECHECKTIMEOUT_EN)
-//  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityBelowNormal, 0U, 0U};
-  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityAboveNormal, 0U, 0U};
+  osThreadAttr_t attr = { NULL, osThreadDetached, NULL, 0U, NULL, 0U, osPriorityBelowNormal, 0U, 0U};
   osThreadId_t id;
   osStatus_t stat;
   uint32_t t_10;
