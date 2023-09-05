@@ -353,11 +353,11 @@ void _init(void)
 
 void _fini(void)
 {
-	_LOCK_T lock = &__lock___libc_recursive_mutex;
-	__retarget_lock_close_recursive(lock);
-
 #ifdef MULTICORE
 	for (uint32_t core = 1; core < SystemNumCores; ++core)
 		hal_multicore_stop(core);
 #endif
+
+	_LOCK_T lock = &__lock___libc_recursive_mutex;
+	__retarget_lock_close_recursive(lock);
 }

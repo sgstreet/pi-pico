@@ -547,7 +547,7 @@ int _main(int argc, char **argv)
 	struct arguments args = { .argc = argc, .argv = argv, .ret = 0 };
 	osThreadAttr_t main_thread_attr = { .cb_mem = 0 };
 	main_thread_attr.name = "main-task";
-	main_thread_attr.attr_bits = osThreadDetached;
+	main_thread_attr.attr_bits = osThreadJoinable;
 	main_thread_attr.cb_mem = alloca(SCHEDULER_MAIN_STACK_SIZE + sizeof(struct rtos_thread));
 	main_thread_attr.cb_size = sizeof(struct rtos_thread);
 	main_thread_attr.stack_mem = ((struct rtos_thread*)(main_thread_attr.cb_mem))->stack_area;
