@@ -220,8 +220,6 @@ struct scheduler
 
 	unsigned long deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
 
-	atomic_int active_cores;
-
 	unsigned long marker;
 };
 

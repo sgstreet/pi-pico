@@ -5,6 +5,10 @@
 #include <compiler.h>
 #include <linked-list.h>
 
+#ifndef RTOS2_MAX_KERNEL_EXIT_HANDLERS
+#define RTOS2_MAX_KERNEL_EXIT_HANDLERS 2UL
+#endif
+
 #define RTOS_KERNEL_MARKER 0x42000024UL
 #define RTOS_THREAD_MARKER 0x42011024UL
 #define RTOS_MUTEX_MARKER 0x42022024UL
@@ -32,6 +36,7 @@ typedef void (*osOnceFunc_t)(void);
 typedef struct linked_list *osResourceNode_t;
 typedef void *osResource_t;
 typedef osStatus_t (*osResouceNodeForEachFunc_t)(const osResource_t resource, void *context);
+typedef void (*osKernelExitFunction_t)(void *context);
 
 typedef void *osDequeId_t;
 
@@ -233,6 +238,11 @@ struct rtos_kernel
 	uint32_t critical_counter;
 
 	struct rtos_resource resources[osResourceLast];
+
+	struct {
+		osKernelExitFunction_t function;
+		void *context;
+	} exit_handlers[RTOS2_MAX_KERNEL_EXIT_HANDLERS];
 };
 
 extern struct rtos_kernel *rtos2_kernel;
@@ -256,6 +266,7 @@ void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func);
 uint32_t osKernelEnterCritical(void);
 void osKernelExitCritical(uint32_t state);
 
+osStatus_t osKernelAtExit(osKernelExitFunction_t function, void *context);
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node);
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node);
 bool osKernelResourceIsLocked(osResourceId_t resource_id);

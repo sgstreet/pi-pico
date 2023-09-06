@@ -28,6 +28,7 @@ struct __lock
 
 extern void _set_tls(void *tls);
 extern void _init_tls(void *__tls_block);
+extern void *__aeabi_read_tp(void);
 
 extern __weak void osTimerTick(uint32_t ticks);
 
@@ -45,6 +46,7 @@ void _fini(void);
 void __libc_fini_array(void);
 
 struct __lock __lock___libc_recursive_mutex = { 0 };
+static void *old_tls = 0;
 
 #if 0
 /* Not C because of some bull shit undocumented gcc nonsense where r0-r3 are not saved by the caller as expected
@@ -256,7 +258,13 @@ static void systick_handler(void *context)
 
 void scheduler_run_hook(bool start)
 {
+	static atomic_int active_cores = 0;
+
 	if (start) {
+
+		/* If this is the first core about start, save the current tls */
+		if (SystemCurrentCore() == 0)
+			old_tls = __aeabi_read_tp();
 
 		/* Initialize the scheduler exception priorities */
 		irq_set_priority(PendSV_IRQn, SCHEDULER_PENDSV_PRIORITY);
@@ -268,9 +276,19 @@ void scheduler_run_hook(bool start)
 		/* Register a handler */
 		systick_register_handler(systick_handler, 0);
 
-	} else
+		++active_cores;
+
+	} else {
+
 		/* Just unregister the handler, it is ok if the systick is still running */
 		systick_unregister_handler(systick_handler);
+
+		/* If this is the last core, restore the old tls */
+		if (SystemCurrentCore() == 0) {
+			while (active_cores> 0);
+			_set_tls(old_tls);
+		}
+	}
 }
 
 #ifdef MULTICORE
@@ -343,10 +361,19 @@ void _init(void)
 	__retarget_lock_init_recursive(&lock);
 
 #ifdef MULTICORE
+//	extern struct scheduler *scheduler;
 	for (uint32_t core = 1; core < SystemNumCores; ++core) {
+
+//		/* We will track the core start ups */
+//		int active_cores = scheduler->active_cores;
+
+		/* Any additional cores */
 		struct hal_multicore_executable executable = { .argc = 0, .argv = 0, .entry_point = mulitcore_run };
 		if (hal_multicore_start(core, &executable) < 0)
 			abort();
+
+//		/* Busy what for the core count to update */
+//		while (active_cores == scheduler->active_cores);
 	}
 #endif
 }
@@ -354,8 +381,8 @@ void _init(void)
 void _fini(void)
 {
 #ifdef MULTICORE
-	for (uint32_t core = 1; core < SystemNumCores; ++core)
-		hal_multicore_stop(core);
+//	for (uint32_t core = 1; core < SystemNumCores; ++core)
+//		hal_multicore_stop(core);
 #endif
 
 	_LOCK_T lock = &__lock___libc_recursive_mutex;

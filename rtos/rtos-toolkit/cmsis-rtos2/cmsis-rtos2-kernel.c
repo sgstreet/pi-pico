@@ -8,11 +8,12 @@
 
 #include <rtos/rtos-toolkit/rtos-toolkit.h>
 
-struct rtos_kernel *rtos2_kernel = 0;
-
 extern __weak void *_rtos2_alloc(size_t size);
 extern __weak void _rtos2_release(void *ptr);
 extern void *__tls_size;
+
+static struct rtos_kernel kernel = { .state = osKernelInactive };
+struct rtos_kernel *rtos2_kernel = 0;
 
 __weak void *_rtos2_alloc(size_t size)
 {
@@ -29,8 +30,6 @@ __weak void *_rtos2_alloc(size_t size)
 __weak void _rtos2_release(void *ptr)
 {
 }
-
-static struct rtos_kernel kernel = { .state = osKernelInactive };
 
 osStatus_t osKernelInitialize(void)
 {
@@ -146,9 +145,21 @@ osStatus_t osKernelStart(void)
 	/* Start up the scheduler, we return here when the scheduler terminates */
 	rtos2_kernel->state = osKernelRunning;
 	int status = scheduler_run();
+	rtos2_kernel->state = osKernelInactive;
 
-	/* Scheduler is down now */
-	return status == 0 ? osOK : osError;
+	/* Call exit handlers on normal exit */
+	if (status == 0) {
+		for (size_t i = 0; i < RTOS2_MAX_KERNEL_EXIT_HANDLERS; ++i)
+			if (rtos2_kernel->exit_handlers[i].function)
+				rtos2_kernel->exit_handlers[i].function(rtos2_kernel->exit_handlers[i].context);
+			else
+				break;
+
+		return osOK;
+	}
+
+	/* Bad exit */
+	return osError;
 }
 
 int32_t osKernelLock(void)
@@ -300,6 +311,41 @@ void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func)
 	/*  Mark as done */
 	*once_flag = 2;
 	__DSB();
+}
+
+osStatus_t osKernelAtExit(osKernelExitFunction_t function, void *context)
+{
+	/* Make sure a function was provide, the context is optional */
+	if (!function)
+		return osErrorParameter;
+
+	/* This would be bad */
+	osStatus_t os_status = osKernelContextIsValid(false, 0);
+	if (os_status != osOK)
+		return os_status;
+
+	/* Ensure the kernel is initialized */
+	if (osKernelGetState() < osKernelReady)
+		return osError;
+
+	/* Need a critical section for modified the list */
+	uint32_t state = osKernelEnterCritical();
+
+	/* Look for empty slot */
+	os_status = osErrorResource;
+	for (size_t i = 0; i < RTOS2_MAX_KERNEL_EXIT_HANDLERS; ++i)
+		if (!rtos2_kernel->exit_handlers[i].function) {
+			rtos2_kernel->exit_handlers[i].function = function;
+			rtos2_kernel->exit_handlers[i].context = context;
+			os_status = osOK;
+			break;
+		}
+
+	/* All done */
+	osKernelExitCritical(state);
+
+	/* Hope joy was found in the list */
+	return os_status;
 }
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node)
@@ -547,7 +593,7 @@ int _main(int argc, char **argv)
 	struct arguments args = { .argc = argc, .argv = argv, .ret = 0 };
 	osThreadAttr_t main_thread_attr = { .cb_mem = 0 };
 	main_thread_attr.name = "main-task";
-	main_thread_attr.attr_bits = osThreadJoinable;
+	main_thread_attr.attr_bits = osThreadDetached;
 	main_thread_attr.cb_mem = alloca(SCHEDULER_MAIN_STACK_SIZE + sizeof(struct rtos_thread));
 	main_thread_attr.cb_size = sizeof(struct rtos_thread);
 	main_thread_attr.stack_mem = ((struct rtos_thread*)(main_thread_attr.cb_mem))->stack_area;
@@ -564,6 +610,7 @@ int _main(int argc, char **argv)
 		status = args.ret;
 	else
 		status = -errno;
+
 
 	return status;
 }

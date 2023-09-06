@@ -201,13 +201,19 @@ static void osThreadReaper(void *context)
 	abort();
 }
 
+static void osThreadReaperFini(void *context)
+{
+	_rtos2_release_thread(context);
+}
+
 static void osThreadReaperInit(void)
 {
-	/* Create the reaper thread */
-	osThreadAttr_t attr = { .name = "osThreadReaper", .stack_size = RTOS_DEFAULT_STACK_SIZE, .priority = osPriorityNormal };
+	/* Create the reaper thread, we mark the thread as joinable at this prevents the reaper from reaping itself, clean up will be handled when the kernel exits */
+	osThreadAttr_t attr = { .name = "osThreadReaper", .attr_bits = osThreadJoinable, .stack_size = RTOS_DEFAULT_STACK_SIZE, .priority = osPriorityNormal };
 	reaper_thread = osThreadNew(osThreadReaper, 0, &attr);
 	if (!reaper_thread)
 		abort();
+	osKernelAtExit(osThreadReaperFini, reaper_thread);
 }
 
 static void osSchedulerTaskEntryPoint(void *context)

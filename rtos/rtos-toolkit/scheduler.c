@@ -52,6 +52,9 @@ void scheduler_priority_svc(uint32_t svc, struct exception_frame *frame);
 
 struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame);
 
+extern void _set_tls(void *tls);
+extern void *__aeabi_read_tp(void);
+
 extern __weak void scheduler_idle_hook(void);
 extern __weak void scheduler_switch_hook(struct task *task);
 extern __weak void scheduler_terminated_hook(struct task *task);
@@ -934,8 +937,12 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 			/* The syscall will return ok */
 			cls_datum(scheduler_initial_frame)->r0 = 0;
 
+			/* We are holding the spin lock release it */
+			scheduler_spin_unlock();
+
 			/* This will return to the invoker of scheduler_start */
-			return cls_datum(scheduler_initial_frame);
+			struct scheduler_frame *sif = cls_datum(scheduler_initial_frame);
+			return sif;
 		}
 
 		/* Call the idle hook if present */
@@ -1086,9 +1093,6 @@ int scheduler_run(void)
 		return -EINVAL;
 	}
 
-	/* Update the active cores */
-	atomic_fetch_add(&scheduler->active_cores, 1);
-
 	/* Forward start hook */
 	scheduler_run_hook(true);
 
@@ -1101,10 +1105,6 @@ int scheduler_run(void)
 
 	/* Forward exit hook */
 	scheduler_run_hook(false);
-
-	/* Clear the scheduler singleton, if this is the last core out, to restart reinitialize */
-	if (atomic_fetch_sub(&scheduler->active_cores, 1) == 1)
-		scheduler = 0;
 
 	/* All done */
 	return 0;
