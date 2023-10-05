@@ -29,6 +29,7 @@ TARGET_OBJ_LIBS += rtos/rtos-toolkit
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
+CFLAGS += -Wno-unused-but-set-variable
 LDSCRIPTS := -L${PROJECT_ROOT}/ldscripts -T memory.ld -T regions-flash.ld -T sections.ld
 
 all: ${INSTALL_ROOT}/scheduler-test.elf ${INSTALL_ROOT}/scheduler-test.bin ${INSTALL_ROOT}/scheduler-test.uf2

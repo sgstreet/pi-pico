@@ -29,6 +29,7 @@ TARGET_OBJ_LIBS += rtos/rtos-toolkit rtos/rtos-toolkit/cmsis-rtos2
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
+CFLAGS += -Wno-unused-but-set-variable
 LDSCRIPTS := -L${PROJECT_ROOT}/ldscripts -T memory.ld -T regions-flash.ld -T sections.ld
 
 all: ${INSTALL_ROOT}/rtos-test.elf ${INSTALL_ROOT}/rtos-test.bin ${INSTALL_ROOT}/rtos-test.uf2

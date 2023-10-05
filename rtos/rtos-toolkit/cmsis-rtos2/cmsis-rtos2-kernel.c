@@ -304,7 +304,7 @@ void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func)
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node)
 {
-	uint32_t state;
+	uint32_t state = 0;
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -338,7 +338,7 @@ osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node
 
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node)
 {
-	uint32_t state;
+	uint32_t state = 0;
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -366,7 +366,7 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 
 osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForEachFunc_t func, void *context)
 {
-	uint32_t state;
+	uint32_t state = 0;
 
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);

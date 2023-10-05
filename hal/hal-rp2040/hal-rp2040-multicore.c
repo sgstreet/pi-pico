@@ -479,7 +479,7 @@ static __unused void hal_multicore_init(void)
 		SystemLaunchCore(i, SCB->VTOR, (uintptr_t)cores[i]->stack_pointer, _multicore_start);
 
 		/* Wait for the core to reach the idle state */
-		while (cores[i]->state != HAL_MULTICORE_IDLE);
+		while (atomic_load(&cores[i]->state) != HAL_MULTICORE_IDLE);
 
 		/* Log core initialization */
 		syslog_info("core %lu initialized\n", i);

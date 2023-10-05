@@ -75,7 +75,7 @@ __fast_section __optimize void __wrap__set_tls(void *tls)
 }
 
 void __wrap__init_tls(void *__tls);
-void __wrap__init_tls(void *__tls)
+__no_optimize void __wrap__init_tls(void *__tls)
 {
 	char *src;
 	char *dst;
@@ -96,7 +96,7 @@ void __wrap__init_tls(void *__tls)
 }
 
 void _init_cls(void *cls_datum);
-void _init_cls(void *cls_datum)
+__no_optimize void _init_cls(void *cls_datum)
 {
 	char *dst;
 	char *src;

@@ -15,8 +15,8 @@ export OUTPUT_ROOT ?= ${PROJECT_ROOT}/build
 export TOOLS_ROOT ?= ${PROJECT_ROOT}/tools
 export PREFIX ?= ${PROJECT_ROOT}/images
 
-export INSTALL_ROOT ?= ${PREFIX}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
-export BUILD_ROOT ?= ${OUTPUT_ROOT}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
+export INSTALL_ROOT := ${PREFIX}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
+export BUILD_ROOT := ${OUTPUT_ROOT}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
 
 ifeq (${V},)
 SILENT=--silent
@@ -24,10 +24,17 @@ endif
 
 MAKEFLAGS += ${SILENT}
 
-ifeq (${MAKECMDGOAL},setup)
+$(info Building ${BUILD_TYPE})
+
+ifeq (${MAKECMDGOALS},setup)
 include ${TOOLS_ROOT}/makefiles/setup.mk
-else ifeq (${MAKECMDGOAL},host-tools)
+else ifeq (${MAKECMDGOALS},host-tools)
 include ${TOOLS_ROOT}/makefiles/setup.mk
+else ifeq (${MAKECMDGOALS},build-all)
+build-all:
+	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=debug all
+	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=release all
+.PHONY: build-all
 else
 include ${TOOLS_ROOT}/makefiles/tree.mk
 

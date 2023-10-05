@@ -56,7 +56,6 @@ static void uart_isr(IRQn_Type irq, void *context)
 int console_ini(struct console *console, UART0_Type* uart, IRQn_Type irq, uint32_t baud_rate, uint32_t buffer_size)
 {
 	assert(console != 0 && uart != 0);
-	osDequeDelete(console->rx_queue);
 
 	/* Basic initialization */
 	memset(console, 0, sizeof(struct console));
