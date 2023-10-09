@@ -18,17 +18,17 @@
 
 #include "cmsis_rv2.h"
 
-static const osThreadAttr_t tf_main_attr = {
-  .name          = "TestRunner",
-  .attr_bits     = osThreadDetached,
-  .cb_mem        = NULL,
-  .cb_size       = 0U,
-  .stack_mem     = NULL,
-  .stack_size    = MAIN_THREAD_STACK,
-  .priority      = osPriorityNormal,
-  .tz_module     = 0,
+//static const osThreadAttr_t tf_main_attr = {
+//  .name          = "TestRunner",
+//  .attr_bits     = osThreadDetached,
+//  .cb_mem        = NULL,
+//  .cb_size       = 0U,
+//  .stack_mem     = NULL,
+//  .stack_size    = MAIN_THREAD_STACK,
+//  .priority      = osPriorityNormal,
+//  .tz_module     = 0,
 //  .affinity_mask = 0
-};
+//};
 
 /*-----------------------------------------------------------------------------
  *      Init test suite
@@ -266,16 +266,23 @@ static TEST_SUITE ts = {
 /*-----------------------------------------------------------------------------
  *      CMSIS-RTOS2 Validation Entry
  *----------------------------------------------------------------------------*/
+//int cmsis_rv2 (void) {
+//
+//  /* Initialize CMSIS-RTOS2 */
+//  osKernelInitialize();
+//
+//  /* Create test framework main function as a thread */
+//  osThreadNew((osThreadFunc_t)tf_main, &ts, &tf_main_attr);
+//
+//  /* Start executing the test framework main function */
+//  osKernelStart();
+//
+//  return (0);
+//}
+
 int cmsis_rv2 (void) {
 
-  /* Initialize CMSIS-RTOS2 */
-  osKernelInitialize();
+  tf_main(&ts);
 
-  /* Create test framework main function as a thread */
-  osThreadNew((osThreadFunc_t)tf_main, &ts, &tf_main_attr);
-
-  /* Start executing the test framework main function */
-  osKernelStart();
-
-  return (0);
+  return 0;
 }
