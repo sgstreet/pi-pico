@@ -761,6 +761,9 @@ void TC_MutexRobust (void) {
     /* Terminate owner thread */
     ASSERT_TRUE (osThreadTerminate (id[0]) == osOK);
 
+    /* Need a delay to allow the reaper to run */
+    osDelay(10);
+
     /* Check new owner */
     ASSERT_TRUE (osMutexGetOwner(MutexId) == id[1]);
     ASSERT_TRUE (cnt[1] == 1);

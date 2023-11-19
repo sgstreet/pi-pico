@@ -27,13 +27,16 @@ void irq_set_context(IRQn_Type irq, void *context);
 void irq_set_priority(IRQn_Type irq, uint32_t priority);
 uint32_t irq_get_priority(IRQn_Type irq);
 
+void irq_set_core(IRQn_Type irq, uint32_t core);
+uint32_t irq_get_core(IRQn_Type irq);
+
 void irq_enable(IRQn_Type irq);
 void irq_disable(IRQn_Type irq);
 bool irq_is_enabled(IRQn_Type irq);
 
 void irq_trigger(IRQn_Type irq);
+
 bool irq_is_pending(IRQn_Type irq);
 void irq_clear(IRQn_Type irq);
-
 
 #endif

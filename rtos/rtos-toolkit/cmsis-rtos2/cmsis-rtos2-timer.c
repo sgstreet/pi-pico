@@ -16,6 +16,7 @@ void scheduler_tick_hook(unsigned long ticks);
 static osMessageQueueId_t timer_queue;
 static osThreadId_t timer_thread;
 static osOnceFlag_t timer_thread_init = osOnceFlagsInit;
+static spinlock_t active_timers_lock = 0;
 static struct linked_list active_timers = LIST_INIT(active_timers);
 
 __weak struct rtos_timer *_rtos2_alloc_timer(void)
@@ -28,8 +29,10 @@ __weak void _rtos2_release_timer(struct rtos_timer *timer)
 	_rtos2_release(timer);
 }
 
-void osTimerTick(uint32_t ticks)
+void osTimerTick(void)
 {
+	uint32_t ticks = scheduler_get_ticks();
+
 	/* Work to do? */
 	while (!list_is_empty(&active_timers) && list_first_entry(&active_timers, struct rtos_timer, node)->target <= ticks) {
 
@@ -195,12 +198,12 @@ osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks)
 
 	/* Add to the timer list */
 	struct rtos_timer *current = 0;
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&active_timers_lock);
 	list_for_each_entry(current, &active_timers, node)
 		if (timer->target < current->target)
 			break;
 	list_insert_before(&current->node, &timer->node);
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&active_timers_lock, state);
 
 	/* All good */
 	return osOK;
@@ -224,9 +227,9 @@ osStatus_t osTimerStop (osTimerId_t timer_id)
 		return osErrorResource;
 
 	/* Remove timer */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&active_timers_lock);
 	list_remove(&timer->node);
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&active_timers_lock, state);
 
 	/* All good */
 	return osOK;
@@ -262,10 +265,10 @@ osStatus_t osTimerDelete (osTimerId_t timer_id)
 	struct rtos_timer *timer = timer_id;
 
 	/* Stop the timer if it is running */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&active_timers_lock);
 	if (list_is_linked(&timer->node))
 		list_remove(&timer->node);
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&active_timers_lock, state);
 
 	/* Clear the marker */
 	timer->marker = 0;

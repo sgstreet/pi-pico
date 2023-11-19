@@ -70,6 +70,7 @@ osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, con
 	new_pool->name[RTOS_NAME_SIZE - 1] = 0;
 	new_pool->block_size = block_size;
 	new_pool->capacity = block_count;
+	new_pool->lock = 0;
 
 	/* Initialize the semaphore */
 	osSemaphoreAttr_t semaphore_attr = { .name = attr->name, .cb_mem = &new_pool->pool_semaphore, .cb_size = sizeof(struct rtos_semaphore) };
@@ -135,10 +136,10 @@ void *osMemoryPoolAlloc (osMemoryPoolId_t mp_id, uint32_t timeout)
 		return 0;
 
 	/* There must be a block available, get it */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&pool->lock);
 	void **block = pool->free_list;
 	pool->free_list = *block;
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&pool->lock, state);
 
 	/* Should be good */
 	return block;
@@ -162,17 +163,17 @@ osStatus_t osMemoryPoolFree (osMemoryPoolId_t mp_id, void *block)
 		return osErrorParameter;
 
 	/* Add the block to the free list */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&pool->lock);
 	*(void **)block = pool->free_list;
 	pool->free_list = block;
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&pool->lock, state);
 
 	/* Release the token from the semaphore */
 	os_status = osSemaphoreRelease(&pool->pool_semaphore);
 	if (os_status != osOK) {
-		uint32_t state = osKernelEnterCritical();
+		uint32_t state = spin_lock_irqsave(&pool->lock);
 		list_remove(block);
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&pool->lock, state);
 		return os_status;
 	}
 

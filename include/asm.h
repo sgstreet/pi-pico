@@ -57,6 +57,11 @@
 	.thumb_set \handler_name, \default_function
 .endm
 
+.macro function_alias alias_name function_name
+	.global \alias_name
+	.thumb_set \alias_name, \function_name
+.endm
+
 #endif
 
 #endif

@@ -75,6 +75,7 @@ osMessageQueueId_t osMessageQueueNew(uint32_t msg_count, uint32_t msg_size, cons
 	new_queue->msg_size = msg_size;
 	new_queue->msg_count = msg_count;
 	list_init(&new_queue->messages);
+	new_queue->lock = 0;
 
 	/* Initialize the message pool */
 	osMemoryPoolAttr_t pool_attr = { .name = new_queue->name, .cb_mem = &new_queue->message_pool, .cb_size = sizeof(struct rtos_memory_pool), .mp_mem = pool_data, .mp_size = pool_size };
@@ -152,22 +153,22 @@ osStatus_t osMessageQueuePut(osMessageQueueId_t mq_id, const void *msg_ptr, uint
 	memcpy(message->data, msg_ptr, queue->msg_size);
 
 	/* Insert in the correct priority position */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&queue->lock);
 	struct rtos_message *current;
 	list_for_each_entry(current, &queue->messages, node)
 		if (message->priority > current->priority)
 			break;
 	list_insert_before(&current->node, &message->node);
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&queue->lock, state);
 
 	/* Kick the semaphore */
 	os_status = osSemaphoreRelease(&queue->data_available);
 	if (os_status != osOK) {
 
 		/* Remove the message */
-		state = osKernelEnterCritical();
+		state = spin_lock_irqsave(&queue->lock);
 		list_remove(&message->node);
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&queue->lock, state);
 
 		/* Ignore the pool error if any */
 		osMemoryPoolFree(&queue->message_pool, message);
@@ -200,9 +201,9 @@ osStatus_t osMessageQueueGet(osMessageQueueId_t mq_id, void *msg_ptr, uint8_t *m
 		return timeout == 0 ? osErrorResource : osErrorTimeout;
 
 	/* Remove the highest priority message */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&queue->lock);
 	struct rtos_message *message = list_pop_entry(&queue->messages, struct rtos_message, node);
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&queue->lock, state);
 
 	/* Was there a sync error? */
 	if (!message)
@@ -295,9 +296,9 @@ osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id)
 			return os_status;
 
 		/* Pop a message */
-		uint32_t state = osKernelEnterCritical();
+		uint32_t state = spin_lock_irqsave(&queue->lock);
 		struct rtos_message *message = list_pop_entry(&queue->messages, struct rtos_message, node);
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&queue->lock, state);
 
 		/* Was there a sync failure */
 		if (!message)
@@ -309,8 +310,7 @@ osStatus_t osMessageQueueReset(osMessageQueueId_t mq_id)
 			return os_status;
 	}
 
-//	/* Provoke a sync error */
-//	return osSemaphoreRelease(&queue->data_available);
+	/* Looks good */
 	return osOK;
 }
 

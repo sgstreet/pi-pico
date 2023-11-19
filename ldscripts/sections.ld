@@ -22,10 +22,19 @@ ENTRY(Reset_Handler)
 
 SECTIONS
 {
-	/* Set __stack to top of the stack region reserving 512 byte for the fault stack */
+	/* Set __stack to top of the stack region reserving 1024 byte for the fault stack */
 	PROVIDE(__fault_stack__ = ORIGIN(STACK) + LENGTH(STACK));
-	PROVIDE(__stack = ORIGIN(STACK) + LENGTH(STACK) - 512);
-	PROVIDE(__stack_size = 4096 - 512);
+	PROVIDE(__fault_stack_0 = ORIGIN(CORE0) + LENGTH(CORE0));
+	PROVIDE(__fault_stack_1 = ORIGIN(CORE1) + LENGTH(CORE1));
+
+	PROVIDE(__stack = ORIGIN(STACK) + LENGTH(STACK) - 1024);
+	PROVIDE(__stack_size = LENGTH(STACK) - 1024);
+
+	PROVIDE(__stack_0 = ORIGIN(CORE0) + LENGTH(CORE0) - 1024);
+	PROVIDE(__stack_0_size = LENGTH(CORE0) - 1024);
+
+	PROVIDE(__stack_1 = ORIGIN(CORE1) + LENGTH(CORE1) - 1024);
+	PROVIDE(__stack_1_size = LENGTH(CORE1) - 1024);
 
 	__start__ = ORIGIN(TEXT);
 	
@@ -88,7 +97,7 @@ SECTIONS
         __text_end__ = .;
         
     } > TEXT
-	__test = LOADADDR(.text);
+	__text = LOADADDR(.text);
 	__text_size = __text_end__ - __text_start__;		
 	
 	.inits :
@@ -185,20 +194,69 @@ SECTIONS
 
     __etext = .;
 	
-	.vtor (NOLOAD) :
+	.vtor_0 (NOLOAD) :
 	{
 		FILL(0xff)
 		. = ALIGN(256);
-		__vtor_start__ = .;
-		
+		__vtor_0_start__ = .;
+
 		. += __vector_size;
-		
+
 		. = ALIGN(4);
-		__vtor_end__ = .;
-    } > FAST
-	__vtor = LOADADDR(.vtor);
-	__vtor_size = __vtor_end__ - __vtor_start__;
-	
+		__vtor_0_end__ = .;
+    } > CORE0
+	__vtor_0 = LOADADDR(.vtor_0);
+	__vtor_0_size = __vtor_0_end__ - __vtor_0_start__;
+
+	.vtor_1 (NOLOAD) :
+	{
+		FILL(0xff)
+		. = ALIGN(256);
+		__vtor_1_start__ = .;
+
+		. += __vector_size;
+
+		. = ALIGN(4);
+		__vtor_1_end__ = .;
+    } > CORE1
+	__vtor_1 = LOADADDR(.vtor_1);
+	__vtor_1_size = __vtor_1_end__ - __vtor_1_start__;
+
+
+	.core_0 (NOLOAD) :
+	{
+		FILL(0x00)
+		. = ALIGN(4);
+		__core_0_start__ = .;
+
+		. = ALIGN(4);
+		__core_0_data__ = .;
+		. += __core_data_size;
+
+		. = ALIGN(4);
+		__core_0_end__ = .;
+
+	} > CORE0
+	__core_0 = LOADADDR(.core_0);
+	__core_0_size = SIZEOF(.core_0);
+
+	.core_1 (NOLOAD) :
+	{
+		FILL(0x00)
+		. = ALIGN(4);
+		__core_1_start__ = .;
+
+		. = ALIGN(4);
+		__core_1_data__ = .;
+		. += __core_data_size;
+
+		. = ALIGN(8);
+		__core_1_end__ = .;
+
+	} > CORE1
+	__core_1 = LOADADDR(.core_1);
+	__core_1_size = SIZEOF(.core_1);
+
 	.fast :
 	{
     	. = ALIGN(4);
@@ -240,9 +298,9 @@ SECTIONS
 		FILL(0x00)
 		. = ALIGN(4);
 		__core_data_start__ = .;
-		
+		LONG(0xdededede);
 		KEEP(*(.core_data .core_data.*))
-		
+		LONG(0xdededede);
 		__core_data_end__ = .;
 		. = ALIGN(4);
 	} > RODATA
@@ -307,8 +365,20 @@ SECTIONS
 		__copy_table_start__ = .;
 
 		LONG(__vector)
-		LONG(__vtor_start__)
-		LONG(__vtor_size)
+		LONG(__vtor_0)
+		LONG(__vtor_0_size)
+
+		LONG(__vector)
+		LONG(__vtor_1)
+		LONG(__vtor_1_size)
+
+		LONG(__core_data)
+		LONG(__core_0_data__)
+		LONG(__core_data_size)
+
+		LONG(__core_data)
+		LONG(__core_1_data__)
+		LONG(__core_data_size)
 		
 		LONG(__fast)
 		LONG(__fast_start__)
@@ -336,9 +406,8 @@ SECTIONS
 	{
 		. = ALIGN(8);
 		__heap_start = .;
-		__heap_end = ORIGIN(HEAP) + LENGTH(HEAP) - __stack_size;;
+		__heap_end = ORIGIN(HEAP) + LENGTH(HEAP);
 	} > HEAP
 	__heap = LOADADDR(.heap);
 	__heap_size = __heap_end - __heap_start;
 }
-

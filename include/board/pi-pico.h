@@ -42,6 +42,8 @@
 #define BOARD_CLOCK_GPIO2_HZ 0UL
 #define BOARD_CLOCK_GPIO3_HZ 0UL
 
+#define BOARD_IRQ_BINDING (IRQ2MASK(PIO0_IRQ_1_IRQn) | IRQ2MASK(PIO1_IRQ_1_IRQn) | IRQ2MASK(DMA_IRQ_1_IRQn) | IRQ2MASK(SIO_IRQ_PROC1_IRQn) | IRQ2MASK(SWI_5_IRQn))
+
 #define BOARD_CONSOLE_UART UART0
 #define BOARD_CONSOLE_UART_IRQ UART0_IRQ_IRQn
 
@@ -54,9 +56,11 @@
 
 struct board_half_duplex_config
 {
-	uint32_t pio_channel;
+	uint32_t pio_machine;
 	uint32_t gpio_pin;
 	uint32_t dma_channel;
+	IRQn_Type pio_irq;
+	IRQn_Type dma_irq;
 };
 
 extern const struct board_half_duplex_config board_half_duplex_config[BOARD_NUM_HALF_DUPLEX_CHANNELS];

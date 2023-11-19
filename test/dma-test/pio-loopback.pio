@@ -1,0 +1,7 @@
+.program pio_loopback
+
+again:
+	pull
+	mov isr osr
+	push
+	jmp again

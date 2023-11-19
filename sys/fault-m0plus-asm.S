@@ -28,8 +28,16 @@ declare_function HardFault_Handler, .isr
 	mrs        r0, msp       /* Move the main stack pointer to R0 */
 1:
 
-	/* Switch to known good stack */
-	ldr        r1, =__fault_stack__
+	/* Switch to known good stack based on the current core */
+	ldr        r1, =0xd0000000
+	ldr        r1, [r1, #0]
+	cmp        r1, #0
+	beq        2f
+	ldr        r1, =__fault_stack_1
+	b          3f
+2:
+	ldr        r1, =__fault_stack_0
+3:
 	mov        sp, r1
 
 	/* Assemble callee saved registers and pass pointer in R1, need to push callee saved register */

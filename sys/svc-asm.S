@@ -102,7 +102,7 @@ def_service_handler SVC_Handler_31
 declare_function SVC_Handler, .isr
 	.fnstart
 
-	/* Load the active stack into r0 */
+	/* Load the active stack into r1 */
 	movs r0, #4
 	mov r1, lr
 	tst r0, r1               /* Test EXEC_RETURN for used stack */

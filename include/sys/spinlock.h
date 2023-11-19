@@ -8,15 +8,18 @@
 #ifndef _SPINLOCK_H_
 #define _SPINLOCK_H_
 
+#include <stdatomic.h>
 #include <stdbool.h>
 
-void spin_lock(unsigned int spinlock);
-unsigned int spin_lock_irqsave(unsigned int spinlock);
+typedef atomic_ulong spinlock_t;
 
-bool spin_try_lock(unsigned int spinlock);
-bool spin_try_lock_irqsave(unsigned int spinlock, unsigned int *state);
+void spin_lock(spinlock_t *spinlock);
+unsigned int spin_lock_irqsave(spinlock_t *spinlock);
 
-void spin_unlock(unsigned int spinlock);
-void spin_unlock_irqrestore(unsigned int spinlock, unsigned int state);
+bool spin_try_lock(spinlock_t *spinlock);
+bool spin_try_lock_irqsave(spinlock_t *spinlock, unsigned int *state);
+
+void spin_unlock(spinlock_t *spinlock);
+void spin_unlock_irqrestore(spinlock_t *spinlock, unsigned int state);
 
 #endif

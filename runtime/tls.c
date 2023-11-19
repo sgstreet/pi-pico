@@ -7,9 +7,11 @@
 
 #include <cmsis/cmsis.h>
 
-extern void *__arm32_tls_tcb_offset;
 extern void *__core_data_size;
-extern void *__core_data;
+extern void *__core_0;
+extern void *__core_1;
+
+extern void *__arm32_tls_tcb_offset;
 extern char __tdata_source[];
 extern char __tdata_size[];
 extern char __tbss_size[];
@@ -26,30 +28,30 @@ __naked __fast_section void *__aeabi_read_cls(void)
 {
 	asm volatile (
 		".syntax unified\n"
-		"push {r1, lr}\n"
 		"ldr r0, =0xd0000000\n"
 		"ldr r0, [r0, #0]\n"
-		"ldr r1, =__core_data_size\n"
-		"muls r0, r0, r1\n"
-		"ldr r1, =_cls\n"
-		"ldr r1, [r1, #0]\n"
-		"adds r0, r0, r1\n"
-		"pop {r1, pc}\n"
-	);
-}
+		"cmp r0, #0\n"
+		"beq 0f\n"
+		"ldr r0, =__core_1\n"
+		"mov pc, lr\n"
+		"0: \n"
+		"ldr r0, =__core_0\n"
+		"mov pc, lr\n"
+	);}
 
 void *__aeabi_read_core_cls(unsigned long core);
 __naked __fast_section void *__aeabi_read_core_cls(unsigned long core)
 {
 	asm volatile (
 		".syntax unified\n"
-		"push {r1, lr}\n"
-		"ldr r1, =__core_data_size\n"
-		"muls r0, r0, r1\n"
-		"ldr r1, =_cls\n"
-		"ldr r1, [r1, #0]\n"
-		"adds r0, r0, r1\n"
-		"pop {r1, pc}\n"
+		".syntax unified\n"
+		"cmp r0, #0\n"
+		"beq 0f\n"
+		"ldr r0, =__core_1\n"
+		"mov pc, lr\n"
+		"0: \n"
+		"ldr r0, =__core_0\n"
+		"mov pc, lr\n"
 	);
 }
 
@@ -95,20 +97,15 @@ __no_optimize void __wrap__init_tls(void *__tls)
 		*dst++ = 0;
 }
 
-void _init_cls(void *cls_datum);
-__no_optimize void _init_cls(void *cls_datum)
+bool __cls_check(void);
+bool __cls_check(void)
 {
-	char *dst;
-	char *src;
-	char *end;
+	uint32_t *begin_marker = __aeabi_read_core_cls(0);
+	uint32_t *end_marker = __aeabi_read_core_cls(0) + (size_t)&__core_data_size - sizeof(uint32_t);
+	if (*begin_marker != 0xdededede || *end_marker != 0xdededede)
+		return false;
 
-	_cls = cls_datum;
-
-	for (size_t i = 0; i < SystemNumCores; ++i) {
-		dst = cls_datum + i * (size_t)&__core_data_size;
-		src = (char *)&__core_data;
-		end = src + (size_t)&__core_data_size;
-		while (src < end)
-			*dst++ = *src++;
-	}
+	begin_marker = __aeabi_read_core_cls(1);
+	end_marker = __aeabi_read_core_cls(1) + (size_t)&__core_data_size - sizeof(uint32_t);
+	return *begin_marker == 0xdededede && *end_marker == 0xdededede;
 }

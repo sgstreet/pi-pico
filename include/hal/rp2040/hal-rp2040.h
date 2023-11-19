@@ -8,10 +8,12 @@
 
 #define HAL_NUM_LOCKS 32UL
 #define HAL_NUM_PIO_MACHINES 8UL
+#define HAL_NUM_PERIODIC_CHANNELS 4UL
+
+#define HAL_PERIODIC_TIME_BASE_HZ 1000000
 
 #include <hal/rp2040/hal-rp2040-dma.h>
 #include <hal/rp2040/hal-rp2040-pio.h>
 #include <hal/rp2040/hal-rp2040-pwm.h>
-#include <hal/rp2040/hal-rp2040-multicore.h>
 
 #endif

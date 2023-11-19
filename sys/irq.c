@@ -14,10 +14,9 @@ struct irq_entry
 
 static __isr_section __optimize void irq_default_handler(IRQn_Type irq, void *context)
 {
-	irq_clear(irq);
 }
 
-struct irq_entry irq_dispatch[IRQ_NUM] =  { [0 ... IRQ_NUM - 1] = { .handler = irq_default_handler, .context = 0 } };
+struct irq_entry irq_dispatch[IRQ_NUM] = { [0 ... IRQ_NUM - 1] = { .handler = irq_default_handler, .context = 0 } };
 
 __weak void irq_register(IRQn_Type irq, uint32_t priority, irq_handler_t handler, void *context)
 {
@@ -73,6 +72,15 @@ __weak uint32_t irq_get_priority(IRQn_Type irq)
 	return NVIC_GetPriority(irq);
 }
 
+__weak void irq_set_core(IRQn_Type irq, uint32_t core)
+{
+}
+
+__weak uint32_t irq_get_core(IRQn_Type irq)
+{
+	return 0;
+}
+
 __weak bool irq_is_pending(IRQn_Type irq)
 {
 	assert(irq <= __LAST_IRQN);
@@ -114,12 +122,12 @@ __weak void irq_clear(IRQn_Type irq)
 __weak void irq_init(void)
 {
 	/* Set priority for all device interrupts */
-	for (uint32_t irq = 0; irq <= __LAST_IRQN; ++irq)
+	for (uint32_t irq = 0; irq <= __LAST_IRQN; ++irq) {
+		NVIC_DisableIRQ(irq);
+		NVIC_ClearPendingIRQ(irq);
 		NVIC_SetPriority(irq, INTERRUPT_NORMAL);
+	}
 
-	/* Ensure that interrupts are enabled, the reset handler disabled them */
-	SCB->VTOR = (uint32_t)&__vtor;
-	__DSB();
 	__enable_irq();
 }
 PREINIT_SYSINIT_WITH_PRIORITY(irq_init, IRQ_SYSTEM_INIT_PRIORIY);

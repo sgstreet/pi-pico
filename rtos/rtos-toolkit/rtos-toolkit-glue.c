@@ -3,20 +3,19 @@
 #include <alloca.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <sys/lock.h>
-#include <sys/syslog.h>
 #include <sys/systick.h>
-#include <sys/svc.h>
 #include <sys/irq.h>
 #include <sys/swi.h>
 #include <sys/spinlock.h>
-#include <hal/hal.h>
+#include <sys/async.h>
 
 #include <rtos/rtos-toolkit/scheduler.h>
 
 #define LIBC_LOCK_MARKER 0x89988998
-//#define MULTICORE
+#define MULTICORE
 
 struct __lock
 {
@@ -29,12 +28,11 @@ struct __lock
 extern void _set_tls(void *tls);
 extern void _init_tls(void *__tls_block);
 
-extern __weak void osTimerTick(uint32_t ticks);
+extern __weak void osTimerTick(void);
 
 void scheduler_switch_hook(struct task *task);
 void scheduler_tls_init_hook(void *tls);
 void scheduler_run_hook(bool start);
-void scheduler_tick_hook(unsigned long ticks);
 void scheduler_spin_lock(void);
 void scheduler_spin_unlock(void);
 unsigned int scheduler_spin_lock_irqsave(void);
@@ -43,6 +41,8 @@ void scheduler_spin_unlock_irqrestore(unsigned int state);
 void _init(void);
 void _fini(void);
 void __libc_fini_array(void);
+
+spinlock_t scheduler_spinlock = 0;
 
 struct __lock __lock___libc_recursive_mutex = { 0 };
 
@@ -235,23 +235,18 @@ void scheduler_tls_init_hook(void *tls)
 
 void scheduler_switch_hook(struct task *task)
 {
-	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
-	_set_tls(task->tls);
+	void *tls = task != 0 ? task->tls : 0;
+	_set_tls(tls);
 }
 
-void scheduler_tick_hook(unsigned long ticks)
-{
-	if (SystemCurrentCore() == 0)
-		osTimerTick(ticks);
-}
-
-unsigned long systick_counters[2] = { 0, 0 };
 static void systick_handler(void *context)
 {
-	++systick_counters[SystemCurrentCore()];
-
 	/* Forward the to the core tick */
 	scheduler_tick();
+
+	/* Send to the cmsis timer tick */
+	if (SystemCurrentCore() == 0)
+		osTimerTick();
 }
 
 void scheduler_run_hook(bool start)
@@ -277,31 +272,22 @@ void scheduler_run_hook(bool start)
 
 void scheduler_spin_lock()
 {
-	spin_lock(SCHEDULER_HW_SPINLOCK);
+	spin_lock(&scheduler_spinlock);
 }
 
 void scheduler_spin_unlock(void)
 {
-	spin_unlock(SCHEDULER_HW_SPINLOCK);
+	spin_unlock(&scheduler_spinlock);
 }
 
 unsigned int scheduler_spin_lock_irqsave(void)
 {
-	return spin_lock_irqsave(SCHEDULER_HW_SPINLOCK);
+	return spin_lock_irqsave(&scheduler_spinlock);
 }
 
 void scheduler_spin_unlock_irqrestore(unsigned int state)
 {
-	spin_unlock_irqrestore(SCHEDULER_HW_SPINLOCK, state);
-}
-
-static int mulitcore_run(int argc, char **argv)
-{
-	/* start the scheduler running */
-	int status = scheduler_run();
-
-	/* All done */
-	return status;
+	spin_unlock_irqrestore(&scheduler_spinlock, state);
 }
 
 unsigned long scheduler_num_cores(void)
@@ -314,26 +300,37 @@ unsigned long scheduler_current_core(void)
 	return SystemCurrentCore();
 }
 
+extern void multicore_post(uintptr_t event);
+
 void scheduler_request_switch(unsigned long core)
 {
 	/* Current core? */
 	if (core == scheduler_current_core()) {
-		SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-		__DSB();
+		irq_trigger(PendSV_IRQn);
 		return;
 	}
 
-	/* Other core? */
-	if (core < SystemNumCores) {
-		hal_multicore_pend_irq(core, PendSV_IRQn);
-		return;
-	}
-
-	/* Other cores? */
-	for (uint32_t core = 0; core < SystemNumCores; ++core)
-		if (core != SystemCurrentCore())
-			hal_multicore_pend_irq(core, PendSV_IRQn);
+	/* System interrupt must be sent directly to the other core */
+	multicore_post(0x90000000 | (PendSV_IRQn + 16));
 }
+
+static void multicore_trap(void)
+{
+	abort();
+}
+
+void init_fault(void);
+void init_fault(void)
+{
+	multicore_post((uintptr_t)multicore_trap);
+}
+
+static void mulitcore_scheduler_run(struct async *async)
+{
+	/* start the scheduler running */
+	scheduler_run();
+}
+static struct async multicore_scheduler_async;
 
 #endif
 
@@ -343,19 +340,14 @@ void _init(void)
 	__retarget_lock_init_recursive(&lock);
 
 #ifdef MULTICORE
-	for (uint32_t core = 1; core < SystemNumCores; ++core) {
-		struct hal_multicore_executable executable = { .argc = 0, .argv = 0, .entry_point = mulitcore_run };
-		if (hal_multicore_start(core, &executable) < 0)
-			abort();
-	}
+	async_run(&multicore_scheduler_async, mulitcore_scheduler_run, 0);
 #endif
 }
 
 void _fini(void)
 {
 #ifdef MULTICORE
-	for (uint32_t core = 1; core < SystemNumCores; ++core)
-		hal_multicore_stop(core);
+	async_cancel(&multicore_scheduler_async);
 #endif
 
 	_LOCK_T lock = &__lock___libc_recursive_mutex;

@@ -72,9 +72,8 @@ osStatus_t osKernelInitialize(void)
 		RTOS_DEQUE_MARKER,
 	};
 
-	/* Initialize the critical section */
-	kernel.critical = UINT32_MAX;
-	kernel.critical_counter = 0;
+	/* Initialize the kernel lock */
+	kernel.lock = 0;
 
 	/* Can not be called from interrupt context */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
@@ -102,6 +101,7 @@ osStatus_t osKernelInitialize(void)
 		resource->name[RTOS_NAME_SIZE - 1] = 0;
 		resource->offset = resource_offsets[i];
 		list_init(&resource->resource_list);
+		resource->lock = 0;
 	}
 
 	/* Mark the kernel as initialized */
@@ -114,10 +114,15 @@ osStatus_t osKernelInitialize(void)
 
 osStatus_t osKernelGetInfo(osVersion_t *version, char *id_buf, uint32_t id_size)
 {
-	snprintf(id_buf, id_size, "rtos-toolkit");
-	id_buf[id_size - 1] = 0;
-	version->api = 02001003;
-	version->kernel = 02001003;
+	if (version != 0) {
+		version->api = 02001003;
+		version->kernel = 02001003;
+	}
+
+	if (id_buf != 0) {
+		snprintf(id_buf, id_size, "rtos-toolkit");
+		id_buf[id_size - 1] = 0;
+	}
 
 	return osOK;
 }
@@ -163,13 +168,13 @@ int32_t osKernelLock(void)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&rtos2_kernel->lock);
 	int32_t prev_lock = rtos2_kernel->locked;
 	rtos2_kernel->locked = true;
 	rtos2_kernel->state = osKernelLocked;
 	if (!prev_lock)
 		scheduler_lock();
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&rtos2_kernel->lock, state);
 
 	/* Previous state */
 	return prev_lock;
@@ -187,13 +192,13 @@ int32_t osKernelUnlock(void)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&rtos2_kernel->lock);
 	int32_t prev_lock = rtos2_kernel->locked;
 	rtos2_kernel->locked = false;
 	rtos2_kernel->state = osKernelRunning;
 	if (prev_lock)
 		scheduler_unlock();
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&rtos2_kernel->lock, state);
 
 	/* Return the previous lock state */
 	return prev_lock;
@@ -211,7 +216,7 @@ int32_t osKernelRestoreLock(int32_t lock)
 		return osError;
 
 	/* Need a critical section to handle adaption */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&rtos2_kernel->lock);
 	rtos2_kernel->locked = lock;
 	if (lock) {
 		scheduler_lock();
@@ -220,7 +225,7 @@ int32_t osKernelRestoreLock(int32_t lock)
 		scheduler_unlock();
 		rtos2_kernel->state = osKernelRunning;
 	}
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&rtos2_kernel->lock, state);
 
 	/* Return the previous lock state */
 	return rtos2_kernel->locked;
@@ -304,8 +309,6 @@ void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func)
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node)
 {
-	uint32_t state = 0;
-
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
 	if (os_status != osOK)
@@ -318,9 +321,8 @@ osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node
 	/* Get the resource from the kernel */
 	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
 
-	/* Lock the resource, skip is kernel is not running */
-	if (osKernelGetState() == osKernelRunning)
-		state = osKernelEnterCritical();
+	/* Lock the resource */
+	uint32_t state = spin_lock_irqsave(&resource->lock);
 
 	/* Add it */
 	if (node == (void *)0x20005c80)
@@ -328,9 +330,8 @@ osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node
 
 	list_add(&resource->resource_list, node);
 
-	/* Release the resource reporting any errors, if the kernel is running */
-	if (osKernelGetState() == osKernelRunning)
-		osKernelExitCritical(state);
+	/* Release the resource */
+	spin_unlock_irqrestore(&resource->lock, state);
 
 	/* Done */
 	return osOK;
@@ -338,8 +339,6 @@ osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node
 
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node)
 {
-	uint32_t state = 0;
-
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
 	if (os_status != osOK)
@@ -349,16 +348,17 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 	if (!node)
 		return osErrorParameter;
 
-	/* Lock the resource, skip is kernel is not running */
-	if (osKernelGetState() == osKernelRunning)
-		state = osKernelEnterCritical();
+	/* Get the resource from the kernel */
+	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
+
+	/* Lock the resource */
+	uint32_t state = spin_lock_irqsave(&resource->lock);
 
 	/* Remove it */
 	list_remove(node);
 
-	/* Release the resource reporting any errors, if the kernel is running */
-	if (osKernelGetState() == osKernelRunning)
-		osKernelExitCritical(state);
+	/* Release the resource */
+	spin_unlock_irqrestore(&resource->lock, state);
 
 	/* Kernel not running so everything is ok */
 	return osOK;
@@ -366,8 +366,6 @@ osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t n
 
 osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForEachFunc_t func, void *context)
 {
-	uint32_t state = 0;
-
 	/* This would be bad */
 	osStatus_t os_status = osKernelContextIsValid(false, 0);
 	if (os_status != osOK)
@@ -380,9 +378,8 @@ osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForE
 	/* Get the resource from the kernel */
 	struct rtos_resource *resource = &rtos2_kernel->resources[resource_id];
 
-	/* Lock the resource, skip if kernel is not running */
-	if (osKernelGetState() == osKernelRunning)
-		state = osKernelEnterCritical();
+	/* Lock the resource */
+	uint32_t state = spin_lock_irqsave(&resource->lock);
 
 	/* Loop through all the node until either the end of the list or function return interesting status */
 	osStatus_t func_status = osOK;
@@ -396,8 +393,8 @@ osStatus_t osKernelResourceForEach(osResourceId_t resource_id, osResouceNodeForE
 	}
 
 	/* Release the resource reporting any errors, if the kernel is running */
-	if (osKernelGetState() == osKernelRunning)
-		osKernelExitCritical(state);
+	/* Release the resource */
+	spin_unlock_irqrestore(&resource->lock, state);
 
 	/* Return the call back status */
 	return func_status;
@@ -491,16 +488,6 @@ osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResource_t
 	return osErrorResource;
 }
 
-uint32_t osKernelEnterCritical(void)
-{
-	return scheduler_enter_critical();
-}
-
-void osKernelExitCritical(uint32_t state)
-{
-	scheduler_exit_critical(state);
-}
-
 struct arguments
 {
 	int argc;
@@ -548,7 +535,7 @@ int _main(int argc, char **argv)
 	osThreadAttr_t main_thread_attr = { .cb_mem = 0 };
 	main_thread_attr.name = "main-task";
 	main_thread_attr.attr_bits = osThreadJoinable;
-	main_thread_attr.cb_mem = alloca(SCHEDULER_MAIN_STACK_SIZE + sizeof(struct rtos_thread));
+	main_thread_attr.cb_mem = sbrk(SCHEDULER_MAIN_STACK_SIZE + sizeof(struct rtos_thread));
 	main_thread_attr.cb_size = sizeof(struct rtos_thread);
 	main_thread_attr.stack_mem = ((struct rtos_thread*)(main_thread_attr.cb_mem))->stack_area;
 	main_thread_attr.stack_size = SCHEDULER_MAIN_STACK_SIZE;

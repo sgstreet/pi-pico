@@ -34,6 +34,7 @@ TARGET_OBJ := $(foreach dir, $(addprefix ${BUILD_ROOT}/, ${TARGET_OBJ_LIBS}), $(
 #$(info TARGET_OBJ_LIBS=${TARGET_OBJ_LIBS})
 #$(info TARGET_OBJ=${TARGET_OBJ})
 #$(info EXTRA_DEPS=${EXTRA_DEPS})
+#$(info EXTRA_ELF_DEPS=${EXTRA_ELF_DEPS})
 #$(info EXTRA_TARGETS=${EXTRA_TARGETS})
 #$(info TARGET=${TARGET})
 #$(info ALL-TARGET=$(addprefix ${CURDIR}/,${TARGET}))

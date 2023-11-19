@@ -7,7 +7,7 @@ export ARM_ARCH = armv6-m
 export ARCH_CROSS = cortex-m0plus
 
 export CHIP_TYPE ?= rp2040
-export BOARD_TYPE ?= pi-pico
+export BOARD_TYPE ?= rocket-hex
 
 export BUILD_TYPE ?= debug
 export PROJECT_ROOT ?= ${CURDIR}
@@ -24,8 +24,6 @@ endif
 
 MAKEFLAGS += ${SILENT}
 
-$(info Building ${BUILD_TYPE})
-
 ifeq (${MAKECMDGOALS},setup)
 include ${TOOLS_ROOT}/makefiles/setup.mk
 else ifeq (${MAKECMDGOALS},host-tools)
@@ -41,8 +39,8 @@ include ${TOOLS_ROOT}/makefiles/tree.mk
 SUBDIRS := $(filter-out, host-tools, ${SUBDIRS})
 
 init board diag cmsis sys bootstrap lib hal rtos: runtime
-apps test: init board diag cmsis sys bootstrap lib hal rtos
-target: test apps
+test: init board diag cmsis sys bootstrap lib hal rtos
+target: test
 
 endif
 

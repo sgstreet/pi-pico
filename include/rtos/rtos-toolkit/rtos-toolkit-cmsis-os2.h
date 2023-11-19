@@ -5,6 +5,8 @@
 #include <compiler.h>
 #include <linked-list.h>
 
+#include <sys/spinlock.h>
+
 #define RTOS_KERNEL_MARKER 0x42000024UL
 #define RTOS_THREAD_MARKER 0x42011024UL
 #define RTOS_MUTEX_MARKER 0x42022024UL
@@ -19,7 +21,7 @@
 #define osReapThread 0x40000000UL
 
 #define RTOS_NAME_SIZE 32UL
-#define RTOS_DEFAULT_STACK_SIZE 512UL
+#define RTOS_DEFAULT_STACK_SIZE 1024UL
 #define RTOS_TIMER_QUEUE_SIZE 5
 
 #define osOnceFlagsInit 0
@@ -136,6 +138,7 @@ struct rtos_memory_pool
 
 	struct rtos_semaphore pool_semaphore;
 	void **free_list;
+	spinlock_t lock;
 
 	struct linked_list resource_node;
 
@@ -181,6 +184,7 @@ struct rtos_message_queue
 
 	struct rtos_semaphore data_available;
 	struct rtos_memory_pool message_pool;
+	spinlock_t lock;
 
 	struct linked_list messages;
 
@@ -205,6 +209,7 @@ struct rtos_deque
 	size_t back;
 	void *buffer;
 	atomic_ulong waiters;
+	spinlock_t lock;
 
 	struct linked_list resource_node;
 
@@ -218,6 +223,7 @@ struct rtos_resource
 
 	size_t offset;
 	struct linked_list resource_list;
+	spinlock_t lock;
 };
 
 struct rtos_kernel
@@ -228,9 +234,7 @@ struct rtos_kernel
 	struct scheduler scheduler;
 
 	int32_t locked;
-
-	atomic_uint critical;
-	uint32_t critical_counter;
+	spinlock_t lock;
 
 	struct rtos_resource resources[osResourceLast];
 };
@@ -252,9 +256,6 @@ osStatus_t osDequeReset(osDequeId_t dq_id);
 osStatus_t osDequeDelete(osDequeId_t dq_id);
 
 void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func);
-
-uint32_t osKernelEnterCritical(void);
-void osKernelExitCritical(uint32_t state);
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node);
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node);
@@ -307,7 +308,7 @@ static inline __always_inline __optimize osPriority_t osKernelPriority(uint32_t 
 }
 
 osStatus_t osMemoryPoolIsBlockValid(osMemoryPoolId_t mp_id, void *block);
-void osTimerTick(uint32_t ticks);
+void osTimerTick(void);
 osStatus_t osMutexRobustRelease(osMutexId_t mutex_id, osThreadId_t owner);
 
 #endif

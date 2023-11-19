@@ -61,7 +61,6 @@ extern void *__data_size;
 extern void *__bss;
 extern void *__bss_start__;
 extern void *__bss_size;
-extern void *__vtor;
 extern void *__heap;
 extern void *__heap_size;
 extern char __heap_start[];
@@ -77,8 +76,20 @@ extern void *__tls_align;
 extern void *__arm32_tls_tcb_offset;
 extern void *__arm64_tls_tcb_offset;
 
-extern void *__core_data;
-extern void *__core_data_size;
+extern void *__vtor_0;
+extern void *__vtor_1;
+
+extern void *__core_0;
+extern void *__core_1;
+
+extern void *__stack_0;
+extern void *__stack_0_size;
+
+extern void *__stack_1;
+extern void *__stack_1_size;
+
+extern void *__fault_stack_0;
+extern void *__fault_stack_1;
 
 static inline void run_init_array(void (*start[])(void), void (*end[])(void))
 {

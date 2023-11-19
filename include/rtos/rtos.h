@@ -5,5 +5,6 @@
 
 #define RTOS_IO_ERROR 0x40000000
 #define RTOS_IO_DONE 0x20000000
+#define RTOS_TASK_EXIT 0x10000000
 
 #endif

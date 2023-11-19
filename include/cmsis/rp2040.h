@@ -75,7 +75,13 @@ typedef enum {
   ADC_IRQ_FIFO_IRQn         =  22,              /*!< 22 ADC_IRQ_FIFO                                                           */
   I2C0_IRQ_IRQn             =  23,              /*!< 23 I2C0_IRQ                                                               */
   I2C1_IRQ_IRQn             =  24,              /*!< 24 I2C1_IRQ                                                               */
-  RTC_IRQ_IRQn              =  25               /*!< 25 RTC_IRQ                                                                */
+  RTC_IRQ_IRQn              =  25,              /*!< 25 RTC_IRQ                                                                */
+  SWI_0_IRQn                =  26,
+  SWI_1_IRQn                =  27,
+  SWI_2_IRQn                =  28,
+  SWI_3_IRQn                =  29,
+  SWI_4_IRQn                =  30,
+  SWI_5_IRQn                =  31,
 } IRQn_Type;
 
 

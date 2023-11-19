@@ -22,11 +22,9 @@
 #define MACHINE_TNXFULL_Msk (1UL << MACHINE_TNXFULL_Pos)
 #define MACHINE_LOCAL_Msk (1UL << MACHINE_LOCAL_Pos)
 
-#define MACHINE_IRQ_SOURCE(MACHINE, MASK) (MASK << MACHINE)
-
 typedef void (*hal_pio_interrupt_handler_t)(uint32_t machine, uint32_t source, void *context);
 
-struct hal_pio_machine
+struct hal_pio_state_machine
 {
 	__IOM uint32_t clkdiv;
 	__IOM uint32_t execctrl;
@@ -36,17 +34,20 @@ struct hal_pio_machine
 	__IOM uint32_t pinctrl;
 };
 
-struct hal_pio_machine *hal_pio_get_machine(uint32_t machine);
+struct hal_pio_state_machine *hal_pio_get_machine(uint32_t machine);
 
 uint32_t hal_pio_get_rx_dreg(uint32_t machine);
 uint32_t hal_pio_get_tx_dreg(uint32_t machine);
 
-void hal_pio_register_irq(uint32_t machine, hal_pio_interrupt_handler_t handler, void *context);
-void hal_pio_unregister_irq(uint32_t machine);
+void hal_pio_register_machine(uint32_t machine, IRQn_Type irq, hal_pio_interrupt_handler_t handler, void *context);
+void hal_pio_unregister_machine(uint32_t machine);
 
 void hal_pio_enable_irq(uint32_t machine, uint32_t source);
-void hal_pio_disable_irq(uint32_t machine, uint32_t source);
+void hal_pio_disable_irq(uint32_t machine);
 void hal_pio_clear_irq(uint32_t machine, uint32_t source);
+
+void hal_pio_machine_set_clock(uint32_t machine, uint32_t rate_hz);
+uint32_t hal_pio_machine_get_clock(uint32_t machine);
 
 void hal_pio_machine_enable(uint32_t machine);
 void hal_pio_machine_disable(uint32_t machine);
@@ -68,5 +69,7 @@ bool hal_pio_tx_full(uint32_t machine);
 
 bool hal_pio_is_sticky(uint32_t machine, uint32_t mask);
 void hal_pio_clear_sticky(uint32_t machine, uint32_t mask);
+
+void hal_pio_execute(uint32_t machine, uint16_t instr);
 
 #endif

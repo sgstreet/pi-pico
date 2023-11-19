@@ -20,16 +20,16 @@
 #include <cmsis/cmsis.h>
 #include <sys/fault.h>
 
+extern __weak void init_fault(void);
 extern __weak __noreturn void reset_fault(const struct cortexm_fault *fault);
-extern __weak void save_fault(const struct cortexm_fault *fault, const struct backtrace *entries, int count);
-extern __weak int _backtrace_unwind(backtrace_t *buffer, int size, backtrace_frame_t *frame);
+extern __weak void save_fault(const struct cortexm_fault *fault);
 
 __weak __noreturn void reset_fault(const struct cortexm_fault *fault)
 {
 	abort();
 }
 
-static __isr_section void assemble_cortexm_fault(struct cortexm_fault *fault, const struct fault_frame *fault_frame, const struct callee_registers *callee_registers)
+static __isr_section void assemble_cortexm_fault(struct cortexm_fault *fault, const struct fault_frame *fault_frame, const struct callee_registers *callee_registers, uint32_t exception_return)
 {
 	/* Collect the fault information */
 	fault->r0 = fault_frame->r0;
@@ -52,41 +52,22 @@ static __isr_section void assemble_cortexm_fault(struct cortexm_fault *fault, co
 	fault->PSR = fault_frame->PSR;
 
 	fault->fault_type = SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk;
-}
-
-static __isr_section int backtrace_fault(const struct cortexm_fault *fault, struct backtrace *entries, int size)
-{
-	struct backtrace_frame backtrace_frame;
-
-	/* Collect backtrace */
-	backtrace_frame.fp = fault->r7;
-	backtrace_frame.lr = fault->LR;
-	backtrace_frame.sp = fault->SP;
-	backtrace_frame.pc = fault->PC;
-
-	/* Use PC if it is good */
-	/* TODO Make this 100% right not sure what to do on cortex-m0+
-	if ((fault->CFSR & (1 << 17)) != 0)
-		backtrace_frame.pc = fault->LR;
-    */
-
-	return _backtrace_unwind(entries, size, &backtrace_frame);
+	fault->exception_return = exception_return;
+	fault->core = SIO->CPUID;
 }
 
 __isr_section void hard_fault(const struct fault_frame *fault_frame, const struct callee_registers *callee_registers, uint32_t exception_return)
 {
 	struct cortexm_fault fault;
-	struct backtrace fault_backtrace[FAULT_BACKTRACE_SIZE];
-	int entries = 0;
+
+	/* Initialize fault handling */
+	init_fault();
 
 	/* Assemble the fault information */
-	assemble_cortexm_fault(&fault, fault_frame, callee_registers);
-
-	/* Backtrace the fault */
-	entries = backtrace_fault(&fault, fault_backtrace, FAULT_BACKTRACE_SIZE);
+	assemble_cortexm_fault(&fault, fault_frame, callee_registers, exception_return);
 
 	/* Save the fault information */
-	save_fault(&fault, fault_backtrace, entries);
+	save_fault(&fault);
 
 	/* Reset the fault */
 	reset_fault(&fault);

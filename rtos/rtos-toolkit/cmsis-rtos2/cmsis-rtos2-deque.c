@@ -116,6 +116,7 @@ osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDe
 	new_deque->front = 0;
 	new_deque->back = 0;
 	new_deque->buffer = deque_data;
+	new_deque->lock = 0;
 
 	/* Initialize the deque event flags */
 	osEventFlagsAttr_t event_attr = { .name = attr->name, .cb_mem = &new_deque->events, .cb_size = sizeof(struct rtos_eventflags) };
@@ -186,11 +187,11 @@ osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t time
 	++deque->waiters;
 
 	/* Wait for room */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&deque->lock);
 	while (deque_is_full(deque)) {
 
 		/* Exit the critical section */
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&deque->lock, state);
 
 		/* Wait for room */
 		flags = osEventFlagsWait(&deque->events, RTOS_DEQUE_SPACE_AVAILABLE | RTOS_DEQUE_RESET, osFlagsWaitAny | osFlagsNoClear, timeout);
@@ -213,7 +214,7 @@ osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t time
 		}
 
 		/* Lock it up again */
-		state = osKernelEnterCritical();
+		state = spin_lock_irqsave(&deque->lock);
 	}
 
 	/* Move the front of the queue first */
@@ -223,7 +224,7 @@ osStatus_t osDequePutFront(osDequeId_t dq_id, const void *element, uint32_t time
 	deque_put(deque, element, deque->front);
 
 	/* Exit the critical section */
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&deque->lock, state);
 
 	/* At last */
 	--deque->waiters;
@@ -266,11 +267,11 @@ osStatus_t osDequePutBack(osDequeId_t dq_id, const void *element, uint32_t timeo
 	++deque->waiters;
 
 	/* Wait for room */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&deque->lock);
 	while (deque_is_full(deque)) {
 
 		/* Exit the critical section */
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&deque->lock, state);
 
 		/* Wait for room */
 		flags = osEventFlagsWait(&deque->events, RTOS_DEQUE_SPACE_AVAILABLE | RTOS_DEQUE_RESET, osFlagsWaitAny | osFlagsNoClear, timeout);
@@ -293,7 +294,7 @@ osStatus_t osDequePutBack(osDequeId_t dq_id, const void *element, uint32_t timeo
 		}
 
 		/* Lock it up again */
-		state = osKernelEnterCritical();
+		state = spin_lock_irqsave(&deque->lock);
 	}
 
 	/* Add to the back of the queue */
@@ -303,7 +304,7 @@ osStatus_t osDequePutBack(osDequeId_t dq_id, const void *element, uint32_t timeo
 	deque->back = deque_inc(deque, deque->back);
 
 	/* Exit the critical section */
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&deque->lock, state);
 
 	/* At last */
 	--deque->waiters;
@@ -346,11 +347,11 @@ osStatus_t osDequeGetFront(osDequeId_t dq_id, void *element, uint32_t timeout)
 	++deque->waiters;
 
 	/* Wait for room */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&deque->lock);
 	while (deque_is_empty(deque)) {
 
 		/* Exit the critical section */
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&deque->lock, state);
 
 		/* Wait for data */
 		flags = osEventFlagsWait(&deque->events, RTOS_DEQUE_DATA_AVAILABLE | RTOS_DEQUE_RESET, osFlagsWaitAny | osFlagsNoClear, timeout);
@@ -373,7 +374,7 @@ osStatus_t osDequeGetFront(osDequeId_t dq_id, void *element, uint32_t timeout)
 		}
 
 		/* Lock it up again */
-		state = osKernelEnterCritical();
+		state = spin_lock_irqsave(&deque->lock);
 	}
 
 	/* Get from the front of the queue */
@@ -383,7 +384,7 @@ osStatus_t osDequeGetFront(osDequeId_t dq_id, void *element, uint32_t timeout)
 	deque->front = deque_inc(deque, deque->front);
 
 	/* Exit the critical section */
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&deque->lock, state);
 
 	/* At last */
 	--deque->waiters;
@@ -426,11 +427,11 @@ osStatus_t osDequeGetBack(osDequeId_t dq_id, void *element, uint32_t timeout)
 	++deque->waiters;
 
 	/* Wait for room */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&deque->lock);
 	while (deque_is_empty(deque)) {
 
 		/* Exit the critical section */
-		osKernelExitCritical(state);
+		spin_unlock_irqrestore(&deque->lock, state);
 
 		/* Wait for data */
 		flags = osEventFlagsWait(&deque->events, RTOS_DEQUE_DATA_AVAILABLE | RTOS_DEQUE_RESET, osFlagsWaitAny | osFlagsNoClear, timeout);
@@ -453,7 +454,7 @@ osStatus_t osDequeGetBack(osDequeId_t dq_id, void *element, uint32_t timeout)
 		}
 
 		/* Lock it up again */
-		state = osKernelEnterCritical();
+		state = spin_lock_irqsave(&deque->lock);
 	}
 	memcpy(element, deque->buffer + (deque->back * deque->element_size), deque->element_size);
 
@@ -464,7 +465,7 @@ osStatus_t osDequeGetBack(osDequeId_t dq_id, void *element, uint32_t timeout)
 	deque_get(deque, element, deque->back);
 
 	/* Exit the critical section */
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&deque->lock, state);
 
 	/* At last */
 	--deque->waiters;
@@ -560,10 +561,10 @@ osStatus_t osDequeReset(osDequeId_t dq_id)
 	osThreadSetPriority(osThreadGetId(), old_priority);
 
 	/* Reset the queue */
-	uint32_t state = osKernelEnterCritical();
+	uint32_t state = spin_lock_irqsave(&deque->lock);
 	deque->front = 0;
 	deque->back = 0;
-	osKernelExitCritical(state);
+	spin_unlock_irqrestore(&deque->lock, state);
 
 	/* Clear all flags */
 	flags = osEventFlagsClear(&deque->events, RTOS_DEQUE_RESET | RTOS_DEQUE_DATA_AVAILABLE | RTOS_DEQUE_SPACE_AVAILABLE);

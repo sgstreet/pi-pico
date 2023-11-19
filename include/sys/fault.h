@@ -58,13 +58,16 @@ struct cortexm_fault
 	uint32_t PC;
 	uint32_t PSR;
 	uint32_t fault_type;
+	uint32_t exception_return;
+	uint32_t core;
 };
 
 extern void fault(const struct fault_frame *fault_frame, const struct callee_registers *callee_registers, uint32_t exception_return);
 extern void hard_fault(const struct fault_frame *fault_frame, const struct callee_registers *callee_registers, uint32_t exception_return);
 
 /* These function allow the application to dump, save and continue from a fault */
-extern void save_fault(const struct cortexm_fault *fault, const struct backtrace *entries, int count);
+extern void init_fault(void);
+extern void save_fault(const struct cortexm_fault *fault);
 extern void reset_fault(const struct cortexm_fault *fault);
 
 #endif

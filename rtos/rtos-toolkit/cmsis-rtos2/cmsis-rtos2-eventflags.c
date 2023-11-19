@@ -99,10 +99,15 @@ uint32_t osEventFlagsSet(osEventFlagsId_t ef_id, uint32_t flags)
 
 	/* Run the algo */
 	uint32_t prev_flags = atomic_fetch_or(&eventflags->flags, flags);
-	int status = scheduler_futex_wake(&eventflags->futex, true);
-	if (status < 0)
-		return osFlagsError;
-	return prev_flags | flags;
+	if ((prev_flags & flags) != flags) {
+		int status = scheduler_futex_wake(&eventflags->futex, true);
+		if (status < 0)
+			return osFlagsError;
+		prev_flags |= flags;
+	}
+
+	/* Return the current flags */
+	return prev_flags;
 }
 
 uint32_t osEventFlagsClear(osEventFlagsId_t ef_id, uint32_t flags)

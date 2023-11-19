@@ -1,6 +1,7 @@
 #ifndef COMPILER_H_
 #define COMPILER_H_
 
+#include <assert.h>
 #include <stdbool.h>
 #include <sys/cdefs.h>
 #include <stddef.h>
@@ -13,7 +14,11 @@
 #endif
 
 #ifndef __alias
-#define __alias(name) __attribute__((weak, alias(name)))
+#define __alias(name) __attribute__((alias(name)))
+#endif
+
+#ifndef __weak_alias
+#define __weak_alias(name) __attribute__((weak, alias(name)))
 #endif
 
 #ifndef __extern_inline
@@ -47,6 +52,10 @@
 
 #ifndef __optimize_size
 #define __optimize_size __attribute__((optimize("-Os")))
+#endif
+
+#ifndef __optimize_fast
+#define __optimize_fast __attribute__((optimize("-Ofast")))
 #endif
 
 #ifndef __no_optimize
@@ -112,6 +121,7 @@
 #define cls_datum(datum) (*(cls_datum_ptr(datum)))
 #define cls_datum_core_ptr(core, datum) ((typeof(datum) *)(cls_core_ptr(core) + cls_offset(datum)))
 #define cls_datum_core(core, datum) (*(cls_datum_core_ptr(core, datum)))
+#define cls_check() assert(({extern bool __cls_check(void); __cls_check();}))
 #endif
 
 #endif

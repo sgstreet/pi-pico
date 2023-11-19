@@ -690,6 +690,10 @@ osStatus_t osThreadJoin(osThreadId_t thread_id)
 	if ((thread->attr_bits & osThreadJoinable) == 0)
 		return osErrorResource;
 
+	/* Make sure we are not trying to join ourselves */
+	if (thread_id == osThreadGetId())
+		return osErrorResource;
+
 	/* Wait the the thread to terminate */
 	uint32_t flags = osEventFlagsWait(&thread->joiner, RTOS_THREAD_JOINED, osFlagsWaitAny, osWaitForever);
 	if (flags & osFlagsError)

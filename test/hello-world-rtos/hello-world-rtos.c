@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <alloca.h>
+#include <unistd.h>
 
 #include <init/init-sections.h>
 #include <rtos/rtos.h>
@@ -57,7 +57,7 @@ int _main(int argc, char **argv)
 	main_task_descriptor.context = &args;
 	main_task_descriptor.flags = 0;
 	main_task_descriptor.priority = SCHEDULER_MAX_TASK_PRIORITY;
-	struct task *main_task = scheduler_create(alloca(SCHEDULER_MAIN_STACK_SIZE), SCHEDULER_MAIN_STACK_SIZE, &main_task_descriptor);
+	struct task *main_task = scheduler_create(sbrk(SCHEDULER_MAIN_STACK_SIZE), SCHEDULER_MAIN_STACK_SIZE, &main_task_descriptor);
 	if (!main_task) {
 		errno = EINVAL;
 		return -EINVAL;
@@ -76,7 +76,10 @@ int _main(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	int i = 0;
-	printf("hello world! %d\n", i);
+	for (int i = 0; i < 10; ++i) {
+		printf("hello world! %d\n", i);
+		scheduler_sleep(500);
+	}
+
 	return 0xdeadbeef;
 }

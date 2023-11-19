@@ -19,7 +19,7 @@ static void channel_interrupt_handler(uint32_t machine, uint32_t source, void *c
 
 int main(int argc, char **argv)
 {
-	struct hal_pio_machine *machine = hal_pio_get_machine(3);
+	struct hal_pio_state_machine *machine = hal_pio_get_machine(3);
 
 	hal_pio_load_program(3, pio_timeout_program_instructions, array_sizeof(pio_timeout_program_instructions), 0);
 
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 	/* Load Y with the the timeout values */
 	machine->instr = 0xa047;
 
-	hal_pio_register_irq(3, channel_interrupt_handler, (void *)3);
+	hal_pio_register_machine(3, PIO0_IRQ_0_IRQn, channel_interrupt_handler, (void *)3);
 	hal_pio_enable_irq(3, (1UL << (PIO0_INTR_SM0_Pos + (3 & 0x3))));
 
 	hal_pio_machine_enable(3);

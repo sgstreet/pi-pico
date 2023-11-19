@@ -31,7 +31,7 @@ declare_function SVC_Handler_0, .isr
 	mov sp, r0
 
 	/* First load the core location store pointer for this core */
-	ldr r0,=__aeabi_read_cls
+	ldr r0, =__aeabi_read_cls
 	blx r0
 
 	/* Now calculate the offset to the scheduler initial frame */
@@ -59,9 +59,77 @@ declare_function SVC_Handler_0, .isr
 	.pool
 	.size SVC_Handler_0, . - SVC_Handler_0
 
+/* This is used for service handlers which required a scheduler frame, not just a exception frame */
+declare_function scheduler_svc_handler, .isr
+	.fnstart
+
+	/* First load the scheduler service handler address */
+	lsls r2, r0, #2          /* Convert service number into table offset */
+	mov r0, r1               /* Move the expection frame to r0 for passing to the scheduler */
+
+	ldr r1, =scheduler_svc_vector /* Load the address of the service table */
+	ldr r1, [r1, r2]         /* Load the service handler address */
+
+	/* Do we need a scheduler frame */
+	movs r2, #2              /* Check to see is bit 2 is set, indicating we need a scheduler frame */
+	tst r1, r2
+	bne 1f                   /* We need a scheduler frame */
+
+	/* Forward to the handler who will do the return */
+	bx r1
+
+1:
+	bics r1, r2              /* Clear the scheduler frame request bit */
+
+	/* Save the current context */
+	mov r2, lr
+	mrs r3, control          /* Rember the control (mostly privilge state) */
+	subs r0, r0, #40         /* Reserve space for the remainder of the scheduler frame */
+	stmia r0!, {r2-r7}       /* Save the low registers */
+	mov r4, r8
+	mov r5, r9
+	mov r6, r10
+	mov r7, r11
+	stmia r0!, {r4-r7}       /* Save the high registers */
+	subs r0, r0, #40         /* Make r1 point at the start of the scheduler frame */
+
+	/* Forward to the handler who will return */
+	bx r1
+
+	.fnend
+	.pool
+	.size scheduler_svc_handler, . - scheduler_svc_handler
+
+function_alias SVC_Handler_1, scheduler_svc_handler
+function_alias SVC_Handler_2, scheduler_svc_handler
+function_alias SVC_Handler_3, scheduler_svc_handler
+function_alias SVC_Handler_4, scheduler_svc_handler
+function_alias SVC_Handler_5, scheduler_svc_handler
+function_alias SVC_Handler_6, scheduler_svc_handler
+function_alias SVC_Handler_7, scheduler_svc_handler
+function_alias SVC_Handler_8, scheduler_svc_handler
+
 declare_function PendSV_Handler, .isr
 	.fnstart
 /*	.cantunwind */
+
+	/* First load the core location store pointer for this core */
+	mov r1, lr
+	ldr r0, =__aeabi_read_cls
+	blx r0
+	mov lr, r1
+
+	/* Now calculate the offset of the current task */
+	ldr r1, =current_task
+	ldr r2, =__core_data
+	subs r1, r1, r2
+
+	/* The final memory address R0 + R1 is the active core's current task, load the contents */
+	ldr r0, [r0, r1]
+
+	/* Skip creating a scheduler frame is the current task is null */
+	cmp r0, #0
+	beq	2f
 
 	/* Get the active stack pointer into r0 */
 	movs       r0, #4
@@ -85,6 +153,7 @@ declare_function PendSV_Handler, .isr
 	stmia r0!, {r4-r7}       /* Save the high registers */
 	subs r0, r0, #40         /* Make r0 point at the start of the scheduler frame */
 
+2:
 	/* Switch task */
 	ldr r1, =scheduler_switch
 	blx r1
@@ -106,12 +175,12 @@ declare_function PendSV_Handler, .isr
 	/* Set current stack pointer */
 	movs r1, #4
 	tst r1, r2               /* Check bit 3 of the exec return to determine the stack being used */
-	bne 2f
+	bne 3f
 	msr msp, r0              /* Must have be the initial start frame */
-	b 3f
-2:
-	msr psp, r0              /* Must have a thread */
+	b 4f
 3:
+	msr psp, r0              /* Must have a thread */
+4:
 
 	/* Let it fly */
 	isb

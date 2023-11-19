@@ -24,20 +24,6 @@
 
 #define TASK_NAME_LEN 32
 
-#define SCHEDULER_SVC_CODE(SVC_CODE) SVC_Handler_ ## SVC_CODE
-#define SCHEDULER_DECLARE_SVC(SVC_CODE, SVC_FUNC) void SCHEDULER_SVC_CODE(SVC_CODE)(uint32_t,void*) __attribute__ ((alias(#SVC_FUNC)));
-
-#define SCHEDULER_START_SVC 0
-#define SCHEDULER_CREATE_SVC 1
-#define SCHEDULER_YIELD_SVC 2
-#define SCHEDULER_TERMINATE_SVC 3
-#define SCHEDULER_SUSPEND_SVC 4
-#define SCHEDULER_RESUME_SVC 5
-#define SCHEDULER_WAIT_SVC 6
-#define SCHEDULER_WAKE_SVC 7
-#define SCHEDULER_PRIORITY_SVC 8
-#define SCHEDULER_FLAGS_SVC 9
-
 #ifndef SCHEDULER_PRIOR_BITS
 #define SCHEDULER_PRIOR_BITS 0x00000002UL
 #endif
@@ -114,7 +100,6 @@ struct scheduler_frame
 	uint32_t r10;
 	uint32_t r11;
 
-
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
@@ -187,7 +172,7 @@ struct task
 	void *context;
 	task_exit_handler_t exit_handler;
 	char name[TASK_NAME_LEN];
-	unsigned long flags;
+	atomic_ulong flags;
 
 	unsigned long marker;
 };
@@ -210,15 +195,12 @@ struct scheduler
 	struct sched_queue suspended_queue;
 
 	struct sched_list tasks;
-	struct sched_list terminated;
 	struct sched_list timers;
 	unsigned long timer_expires;
 
 	atomic_int locked;
 	atomic_int critical;
 	int critical_counter;
-
-	unsigned long deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
 
 	atomic_int active_cores;
 

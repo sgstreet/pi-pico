@@ -194,10 +194,6 @@ __isr_section __noreturn __weak void _start(void)
 	int argc;
 	char **argv;
 
- 	/* Initialize any core local data */
- 	void *cls_block = alloca(SystemNumCores * (size_t)&__core_data_size);
- 	_init_cls(cls_block);
-
  	/* Initialize the tls block */
 	void *__tls_block = alloca((size_t)&__tls_size);
  	_init_tls(__tls_block);

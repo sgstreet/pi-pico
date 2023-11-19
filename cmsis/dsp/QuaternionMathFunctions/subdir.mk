@@ -1,0 +1,1 @@
+SRC += ${SOURCE_DIR}/QuaternionMathFunctions.c
