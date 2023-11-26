@@ -7,7 +7,7 @@ export ARM_ARCH = armv6-m
 export ARCH_CROSS = cortex-m0plus
 
 export CHIP_TYPE ?= rp2040
-export BOARD_TYPE ?= rocket-hex
+export BOARD_TYPE ?= pi-pico
 
 export BUILD_TYPE ?= debug
 export PROJECT_ROOT ?= ${CURDIR}
@@ -28,11 +28,11 @@ ifeq (${MAKECMDGOALS},setup)
 include ${TOOLS_ROOT}/makefiles/setup.mk
 else ifeq (${MAKECMDGOALS},host-tools)
 include ${TOOLS_ROOT}/makefiles/setup.mk
-else ifeq (${MAKECMDGOALS},build-all)
-build-all:
+else ifeq (${BUILD_TYPE},all)
+all:
 	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=debug all
 	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=release all
-.PHONY: build-all
+.PHONY: all
 else
 include ${TOOLS_ROOT}/makefiles/tree.mk
 
@@ -49,7 +49,7 @@ distclean:
 	-${RM} -r ${BUILD_ROOT} ${INSTALL_ROOT}
 
 realclean:
-	-${RM} -r ${OUTPUT_ROOT} ${PREFIX} 
+	-${RM} -r ${OUTPUT_ROOT} ${PREFIX} ${PROJECT_ROOT}/tmp ${PROJECT_ROOT}/local
 
 info:
 	@echo "ARM_ARCH=${ARM_ARCH}"

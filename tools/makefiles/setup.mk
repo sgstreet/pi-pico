@@ -6,16 +6,20 @@ PICO_SDK_PATH := ${PROJECT_ROOT}/tmp/${PICO_SDK_REPO}
 PICO_SDK_URL := https://github.com/raspberrypi/${PICO_SDK_REPO}.git
 PICO_SDK_TARGET := ${PICO_SDK_PATH}/CMakeLists.txt
 
-#https://github.com/Open-CMSIS-Pack/devtools/releases/download/tools/svdconv/3.3.44/svdconv-3.3.44-linux64-amd64.tbz2
-
-SVDCONV_VERSION ?= 3.3.45
-SVDCONV_ARCHIVE := svdconv-${SVDCONV_VERSION}-linux64-amd64.tbz2
+SVDCONV_VERSION ?= 3.3.46
+SVDCONV_ARCHIVE := svdconv-${SVDCONV_VERSION}-linux-amd64.tbz2
 SVDCONV_PATH := ${PROJECT_ROOT}/tmp/
 SVDCONV_URL := https://github.com/Open-CMSIS-Pack/devtools/releases/download/tools/svdconv/${SVDCONV_VERSION}/${SVDCONV_ARCHIVE}
 SVDCONV_TARGET := ${PROJECT_ROOT}/local/bin/svdconv
 
-SETUP_TARGETS := ${PICO_SDK_TARGET} ${SVDCONV_TARGET}
-SETUP_PATHS := ${PICO_SDK_PATH} ${SVDCONV_PATH}
+COMPILER_VERSION ?= v0.1.0
+COMPILER_ARCHIVE := gcc-arm-none-eabi-12-2-0.tar.xz
+COMPILER_PATH := ${PROJECT_ROOT}/tmp
+COMPILER_URL := https://github.com/red-rocket-computing/cross-dev/releases/download/${COMPILER_VERSION}/${COMPILER_ARCHIVE}
+COMPILER_TARGET := ${PROJECT_ROOT}/local/bin/arm-none-eabi-gcc
+
+SETUP_TARGETS := ${PICO_SDK_TARGET} ${SVDCONV_TARGET} ${COMPILER_TARGET}
+SETUP_PATHS := ${PICO_SDK_PATH} ${SVDCONV_PATH} ${COMPILER_PATH}
 
 include ${PROJECT_ROOT}/tools/makefiles/common.mk
 
@@ -27,6 +31,7 @@ ${PICO_SDK_TARGET}:
 	@echo "BUILDING ${PICO_SKD_REPO}"
 	cd ${PICO_SDK_PATH}/build && cmake ..
 	cd ${PICO_SDK_PATH}/build && make ELF2UF2Build PioasmBuild
+	[ -d ${PROJECT_ROOT}/local/bin ] || mkdir -p ${PROJECT_ROOT}/local/bin
 	install ${PICO_SDK_PATH}/build/elf2uf2/elf2uf2 ${PROJECT_ROOT}/local/bin/elf2uf2
 	install ${PICO_SDK_PATH}/build/pioasm/pioasm ${PROJECT_ROOT}/local/bin/pioasm
 
@@ -36,7 +41,14 @@ ${SVDCONV_TARGET}:
 	cd ${SVDCONV_PATH} && wget -nv ${SVDCONV_URL}
 	@echo "INSTALLING ${@}"
 	[ -d ${PROJECT_ROOT}/local/bin ] || mkdir -p ${PROJECT_ROOT}/local/bin
-	tar -C  ${PROJECT_ROOT}/local/bin -xf ${SVDCONV_PATH}/${SVDCONV_ARCHIVE}
+	tar -C ${PROJECT_ROOT}/local/bin -xf ${SVDCONV_PATH}/${SVDCONV_ARCHIVE}
+
+${COMPILER_TARGET}:
+	@echo "DOWNLOADING ${COMPILER_URL}"
+	cd ${COMPILER_PATH} && wget -nv ${COMPILER_URL}
+	@echo "INSTALLING ${@}"
+	[ -d ${PROJECT_ROOT}/local ] || mkdir -p ${PROJECT_ROOT}/local
+	tar -C ${PROJECT_ROOT}/local --strip-components=1 -xf ${COMPILER_PATH}/${COMPILER_ARCHIVE}
 
 setup-realclean:
 	@echo "REMOVING ${SETUP_PATHS}"
@@ -45,15 +57,14 @@ setup-realclean:
 
 setup-tools: ${SETUP_TARGETS}
 	@:
-# 	$(Q) $(MAKE) --no-print-directory -C ${PROJECT_ROOT}/host-tools -f host-tools.mk all
-# .PHONY: setup-tools
+.PHONY: setup-tools
 
 host-tools:
 	@echo "ENTERING $@"
 	+${MAKE} --no-print-directory -C $@ -f $@.mk all
 .PHONY: host-tools
 
-setup: setup-tools host-tools
+setup: setup-tools
 	@:
 .PHONY: setup
 
