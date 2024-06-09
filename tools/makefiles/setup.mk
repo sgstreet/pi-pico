@@ -45,6 +45,7 @@ ${SVDCONV_TARGET}:
 
 ${COMPILER_TARGET}:
 	@echo "DOWNLOADING ${COMPILER_URL}"
+	[ -d ${COMPILER_PATH} ] || mkdir -p ${COMPILER_PATH}
 	cd ${COMPILER_PATH} && wget -nv ${COMPILER_URL}
 	@echo "INSTALLING ${@}"
 	[ -d ${PROJECT_ROOT}/local ] || mkdir -p ${PROJECT_ROOT}/local

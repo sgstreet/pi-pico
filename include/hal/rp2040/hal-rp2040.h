@@ -6,7 +6,6 @@
 
 #include <cmsis/cmsis.h>
 
-#define HAL_NUM_LOCKS 32UL
 #define HAL_NUM_PIO_MACHINES 8UL
 #define HAL_NUM_PERIODIC_CHANNELS 4UL
 

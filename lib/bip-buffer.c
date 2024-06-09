@@ -1,195 +1,248 @@
+/*
+ * bip-buffer.c
+ *
+ *  Created on: Feb 5, 2023
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
+/*
+ * Copyright (c) 2022 Djordje Nedic
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software
+ * without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to
+ * whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall
+ * be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+ * KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * This is based on part of LFBB - Lock Free Bipartite Buffer
+ * Author: Djordje Nedic <nedic.djordje2@gmail.com>
+ */
+
+#include <assert.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 #include <bip-buffer.h>
 
-int bip_buffer_ini(bip_buffer_t *bip, void *data, size_t size)
+int bip_buffer_ini(struct bip_buffer *bip_buffer, void *data, size_t size)
 {
-	/* Clear the structure */
-	memset(bip, 0, sizeof(bip_buffer_t));
+	assert(bip_buffer != 0);
 
-	/* Allocate the buffer if needed */
+	/* Always clear the buffer */
+	memset(bip_buffer, 0, sizeof(struct bip_buffer));
+
+	/* Allocated space for the buffer, if needed */
 	if (!data) {
-		data = malloc(size);
-		if (!data) {
-			errno = ENOMEM;
+		data = calloc(size, 1);
+		if (!data)
 			return -errno;
-		}
-		bip->release_buffer = true;
+		bip_buffer->allocated = true;
 	}
 
-	/* Initialize some bits */
-	bip->size = size;
-	bip->data = data;
-	bip->allocated = false;
-	bip->valid = BIP_BUFFER_VALID;
+	/* Initialize it */
+	bip_buffer->data = data;
+	bip_buffer->size = size;
 
-	/* All ready to go */
+	/* All good */
 	return 0;
 }
 
-void bip_buffer_fini(bip_buffer_t *bip)
+void bip_buffer_fini(struct bip_buffer *bip_buffer)
 {
-	if (bip->release_buffer)
-		free(bip->data);
+	assert(bip_buffer != 0);
+
+	/* If we are managing the buffer, release it */
+	if (bip_buffer->allocated)
+		free(bip_buffer->data);
 }
 
-bip_buffer_t *bip_buffer_create(size_t size)
+struct bip_buffer *bip_buffer_create(size_t size)
 {
-	assert(size > 0);
+	/* Allocate the buffer */
+	struct bip_buffer *bip_buffer = malloc(sizeof(struct bip_buffer) + size);
+	if (!bip_buffer)
+		return 0;
 
-	/* Allocate a buffer with maybe with tailing data */
-	bip_buffer_t *bip = malloc(sizeof(bip_buffer_t) + size);
-	if (!bip) {
-		errno = ENOMEM;
+	/* Forward to initializer */
+	int status = bip_buffer_ini(bip_buffer, bip_buffer + sizeof(struct bip_buffer), size);
+	if (status != 0) {
+		free(bip_buffer);
 		return 0;
 	}
 
-	/* Initialize */
-	bip_buffer_ini(bip, (void *)bip + sizeof(bip_buffer_t), size);
-
-	/* Mark as allocated */
-	bip->allocated = true;
-
-	/* All good */
-	return bip;
+	/* Looks good */
+	return bip_buffer;
 }
 
-void bip_buffer_destroy(bip_buffer_t *bip)
+void bip_buffer_destroy(struct bip_buffer *bip_buffer)
 {
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
+	assert(bip_buffer != 0);
 
-	bip_buffer_fini(bip);
+	/* Forward to the finalizer */
+	bip_buffer_fini(bip_buffer);
 
-	/* Release the bip if allocated */
-	if (bip->allocated)
-		free(bip);
+	/* Release our memory */
+	free(bip_buffer);
 }
 
-static inline void bip_buffer_switch_to_b(bip_buffer_t *bip)
+void *bip_buffer_write_acquire(struct bip_buffer *bip_buffer, size_t *needed)
 {
-	bip->using_b = (bip->size - bip->as) < (bip->as - bip->be);
-}
+	assert(bip_buffer != 0);
 
-void *bip_buffer_look(const bip_buffer_t *bip, size_t size)
-{
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
+	/* Load stable data set */
+	const size_t write_index = atomic_load_explicit(&bip_buffer->write_index, memory_order_relaxed);
+	const size_t read_index = atomic_load_explicit(&bip_buffer->read_index, memory_order_acquire);
 
-	/* Is the amount of data available? */
-	if (bip_buffer_is_empty(bip) || bip->size < bip->as + size)
-		return 0;
+	const size_t linear = bip_buffer->size - write_index;
+	const size_t avail = read_index > write_index ?  read_index - write_index - 1 : bip_buffer->size - (write_index - read_index) - 1;
+	const size_t linear_avail = avail < linear ? avail : linear;
 
-	/* Return the pointer */
-	return bip->data + bip->as;
-}
+	/* Get the max available if requested */
+	if (*needed == SIZE_MAX)
+		*needed = linear_avail < avail - linear_avail ? avail - linear_avail : linear_avail;
 
-void *bip_buffer_reserve(bip_buffer_t *bip, size_t size)
-{
-	void *address;
+	/* Check to see if there was any space available */
+	if (needed > 0) {
 
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
+		/* Room at the end of the buffer? */
+		if (*needed <= linear_avail)
+			return bip_buffer->data + write_index;
 
-	/* Do we have room? */
-	if (bip_buffer_available(bip) < size)
-		return 0;
-
-	/* Build address from either the a or b regions */
-	if (bip->using_b) {
-		address = bip->data + bip->be;
-		bip->be += size;
-	} else {
-		address = bip->data + bip->ae;
-		bip->ae += size;
-	}
-
-	/* Maybe switch region */
-	bip_buffer_switch_to_b(bip);
-
-	/* Return the address */
-	return address;
-}
-
-void *bip_buffer_release(bip_buffer_t *bip, size_t size)
-{
-	void *address;
-
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
-
-	/* Check for empty */
-	if (bip_buffer_is_empty(bip) || bip->size < (bip->as + size))
-		return 0;
-
-	/* Build the address of the front */
-	address = bip->data + bip->as;
-
-	/* Move the past the requested size */
-	bip->as += size;
-
-	/* Are we now empty? */
-	if (bip->as == bip->ae) {
-
-		/* Should we replace the a region with the b region? */
-		if (bip->using_b) {
-			bip->as = 0;
-			bip->ae = bip->be;
-			bip->be = 0;
-			bip->using_b = false;
-		} else {
-			bip->as = 0;
-			bip->ae = 0;
+		/* How about at the beginning? */
+		if (*needed <= avail - linear_avail) {
+			bip_buffer->write_wrapped = true;
+			return bip_buffer->data;
 		}
 	}
 
-	/* Maybe actually switch */
-	bip_buffer_switch_to_b(bip);
-
-	/* Return the address */
-	return address;
+	/* Nothing available */
+	return 0;
 }
 
-ssize_t bip_buffer_push(bip_buffer_t *bip, const void *buffer, size_t count)
+void bip_buffer_write_release(struct bip_buffer *bip_buffer, size_t used)
 {
-	assert(buffer != 0);
+	assert(bip_buffer != 0);
 
-	/* Try to reserve the requested space */
-	void *address = bip_buffer_reserve(bip, count);
-	if (!address)
-		return 0;
+	size_t write_index = atomic_load_explicit(&bip_buffer->write_index, memory_order_relaxed);
+	size_t invalidate_index = atomic_load_explicit(&bip_buffer->invalidate_index, memory_order_relaxed);
 
-	/* Copy data */
-	memcpy(address, buffer, count);
+	/* Update the invalidate index if the write acquire wrapped the buffer */
+	if (bip_buffer->write_wrapped) {
+		bip_buffer->write_wrapped = false;
+		invalidate_index = write_index;
+		write_index = 0;
+	}
 
-	/* All good */
-	return count;
+	/* Update the write index */
+	write_index += used;
+
+	/* Did write we write over the invalidated parts? */
+	if (write_index > invalidate_index)
+		invalidate_index = write_index;
+
+	/* Update the write index, wrapping if needed */
+	if (write_index == bip_buffer->size)
+		write_index = 0;
+
+	/* Done update the indexes */
+	atomic_store_explicit(&bip_buffer->invalidate_index, invalidate_index, memory_order_relaxed);
+	atomic_store_explicit(&bip_buffer->write_index, write_index, memory_order_release);
 }
 
-ssize_t bip_buffer_pop(bip_buffer_t *bip, void *buffer, size_t size)
+void *bip_buffer_read_acquire(struct bip_buffer *bip_buffer, size_t *avail)
 {
-	assert(buffer != 0);
+	assert(bip_buffer != 0 && avail != 0);
 
-	/* Try to release the requested space */
-	void *address = bip_buffer_release(bip, size);
-	if (!address)
+	/* Load the indexes */
+	const size_t read_index = atomic_load_explicit(&bip_buffer->read_index, memory_order_relaxed);
+	const size_t write_index = atomic_load_explicit(&bip_buffer->write_index, memory_order_acquire);
+
+	/* Empty? */
+	if (read_index == write_index) {
+		*avail = 0;
 		return 0;
+	}
 
-	/* Copy data */
-	memcpy(buffer, address, size);
+	/* If read index is behind the write index */
+	if (read_index < write_index) {
+		*avail = write_index - read_index;
+		return bip_buffer->data + read_index;
+	}
 
-	/* All good */
-	return size;
+	/* Has the read index reached the invalidated index, wrapped the read */
+	const size_t invalid_index = atomic_load_explicit(&bip_buffer->invalidate_index, memory_order_relaxed);
+	if (read_index == invalid_index) {
+		bip_buffer->read_wrapped = true;
+		*avail = write_index;
+		return bip_buffer->data;
+	}
+
+	/* Data available between the invalidate index and the read index */
+	*avail = invalid_index - read_index;
+	return bip_buffer->data + read_index;
 }
 
-ssize_t bip_buffer_peek(const bip_buffer_t *bip, void *buffer, size_t size)
+void bip_buffer_read_release(struct bip_buffer *bip_buffer, size_t used)
 {
-	/* Try to release the requested space */
-	void *address = bip_buffer_look(bip, size);
-	if (!address)
-		return 0;
+	assert(bip_buffer != 0);
 
-	/* Copy data */
-	memcpy(buffer, address, size);
+	/* Load the read index */
+	size_t read_index = atomic_load_explicit(&bip_buffer->read_index, memory_order_relaxed);
 
-	/* All good */
-	return size;
+	/* Did the read wrap? if so reset the read index */
+	if (bip_buffer->read_wrapped) {
+		bip_buffer->read_wrapped = false;
+		read_index = 0;
+	}
+
+	/* Update the read index, wrapping if needed */
+	read_index += used;
+	if (read_index == bip_buffer->size)
+		read_index = 0;
+
+	/* Update the read index */
+	atomic_store_explicit(&bip_buffer->read_index, read_index, memory_order_release);
+}
+
+bool bip_buffer_is_empty(struct bip_buffer *bip_buffer)
+{
+	return bip_buffer->read_index == bip_buffer->write_index;
+}
+
+size_t bip_buffer_space_available(struct bip_buffer *bip_buffer)
+{
+	assert(bip_buffer != 0);
+
+	/* Load stable data set */
+	const size_t write_index = bip_buffer->write_index;
+	const size_t read_index = bip_buffer->read_index;
+	const size_t linear = bip_buffer->size - read_index;
+	const size_t avail = read_index > write_index ?  read_index - write_index - 1 : bip_buffer->size - (write_index - read_index) - 1;
+
+	/* Return the amount a linear space available */
+	return avail < linear ? avail : linear;
+}
+
+size_t bip_buffer_data_available(struct bip_buffer *bip_buffer)
+{
+	assert(bip_buffer != 0);
+	return bip_buffer->size - bip_buffer_space_available(bip_buffer) - 1;
 }

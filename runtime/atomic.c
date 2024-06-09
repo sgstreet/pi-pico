@@ -21,8 +21,9 @@
 /* Must be powers of 2 */
 #define ATOMIC_STRIPE 4UL
 #define ATOMIC_HW_LOCKS 32UL
+
 #define ATOMIC_HW_LOCK_INDEX 0UL
-#define ATOMIC_LOCK_IDX_Pos (ATOMIC_STRIPE >> 2UL)
+#define ATOMIC_LOCK_IDX_Pos (32 - __builtin_clz(ATOMIC_STRIPE - 1))
 #define ATOMIC_LOCK_IDX_Msk (ATOMIC_HW_LOCKS - 1UL)
 
 #define HW_LOCK_PTR(addr) (locks + ((((uintptr_t)addr) >> ATOMIC_LOCK_IDX_Pos) & ATOMIC_LOCK_IDX_Msk))

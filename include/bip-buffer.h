@@ -1,70 +1,44 @@
 /*
  * bip-buffer.h
  *
- *  Created on: Nov 13, 2015
+ *  Created on: Feb 5, 2023
  *      Author: Stephen Street (stephen@redrocketcomputing.com)
  */
 
-#ifndef BIP_BUFFER_H_
-#define BIP_BUFFER_H_
+#ifndef _BIP_BUFFER_H_
+#define _BIP_BUFFER_H_
 
-#include <assert.h>
+#include <stdatomic.h>
 #include <stdbool.h>
+#include <stddef.h>
 
-#include <sys/types.h>
-
-#define BIP_BUFFER_VALID 0x43eb6d43UL
-
-typedef struct bip_buffer
+struct bip_buffer
 {
-	unsigned long int valid;
+	atomic_ulong read_index;
+	atomic_ulong write_index;
+	atomic_ulong invalidate_index;
+	bool write_wrapped;
+	bool read_wrapped;
+
 	bool allocated;
-	bool release_buffer;
-	unsigned long int size;
-	unsigned long int as;
-	unsigned long int ae;
-	unsigned long int be;
-	bool using_b;
+	size_t size;
 	void *data;
-} bip_buffer_t;
+};
 
-int bip_buffer_ini(bip_buffer_t *bip, void *data, size_t size);
-void bip_buffer_fini(bip_buffer_t *bip);
+int bip_buffer_ini(struct bip_buffer *bip_buffer, void *data, size_t size);
+void bip_buffer_fini(struct bip_buffer *bip_buffer);
 
-bip_buffer_t *bip_buffer_create(size_t size);
-void bip_buffer_destroy(bip_buffer_t *bip);
+struct bip_buffer *bip_buffer_create(size_t size);
+void bip_buffer_destroy(struct bip_buffer *bip_buffer);
 
-void *bip_buffer_look(const bip_buffer_t *bip, size_t size);
-void *bip_buffer_reserve(bip_buffer_t *bip, size_t size);
-void *bip_buffer_release(bip_buffer_t *bip, size_t size);
+void *bip_buffer_write_acquire(struct bip_buffer *bip_buffer, size_t *needed);
+void bip_buffer_write_release(struct bip_buffer *bip_buffer, size_t used);
 
-ssize_t bip_buffer_push(bip_buffer_t *bip, const void *buffer, size_t count);
-ssize_t bip_buffer_pop(bip_buffer_t *bip, void *buffer, size_t size);
-ssize_t bip_buffer_peek(const bip_buffer_t *bip, void *buffer, size_t size);
+void *bip_buffer_read_acquire(struct bip_buffer *bip_buffer, size_t *avail);
+void bip_buffer_read_release(struct bip_buffer *bip_buffer, size_t used);
 
-static inline bool bip_buffer_is_empty(const bip_buffer_t *bip)
-{
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
-	return bip->as == bip->ae;
-}
-
-static inline size_t bip_buffer_available(const bip_buffer_t *bip)
-{
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
-	return bip->using_b ? bip->as - bip->be : bip->size - bip->ae;
-}
-
-static inline size_t bip_buffer_used(const bip_buffer_t *bip)
-{
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
-	return (bip->ae - bip->as) + bip->be;
-}
-
-static inline size_t bip_buffer_size(const bip_buffer_t *bip)
-{
-	assert(bip != 0 && bip->valid == BIP_BUFFER_VALID);
-	return bip->size;
-}
+bool bip_buffer_is_empty(struct bip_buffer *bip_buffer);
+size_t bip_buffer_space_available(struct bip_buffer *bip_buffer);
+size_t bip_buffer_data_available(struct bip_buffer *bip_buffer);
 
 #endif
-
