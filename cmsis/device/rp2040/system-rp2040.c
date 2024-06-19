@@ -62,7 +62,7 @@
 #define RP2040_CLOCK_ADC 8UL
 #define RP2040_CLOCK_RTC 9UL
 
-extern __attribute__((noreturn)) void *rom_func_lookup(uint32_t);
+extern void *rom_func_lookup(uint32_t);
 
 const uint32_t SystemNumCores = 2;
 volatile uint32_t *const system_current_core = (volatile uint32_t *const)&(SIO->CPUID);
@@ -221,6 +221,8 @@ void SystemInit(void)
 	/* All the clocks are running, take all the peripherals out of reset */
 	RESETS->RESET = ~RESETS_RESETS_ALL;
 	while ((RESETS->RESET_DONE & RESETS_RESETS_ALL) != RESETS_RESETS_ALL);
+
+	SystemResetCore(1);
 }
 
 void SystemCoreClockUpdate(void)
@@ -228,21 +230,82 @@ void SystemCoreClockUpdate(void)
 	SystemCoreClock = rp2040_clocks[RP2040_CLOCK_SYS];
 }
 
-extern void __atomic_init(void);
-extern void __aeabi_mem_init(void);
-extern void __aeabi_bits_init(void);
-extern void __aeabi_float_init(void);
-extern void __aeabi_double_init(void);
-extern void __multicore_init(void);
-
-static void runtime_init(void)
+void SystemResetCore(uint32_t core)
 {
-	__atomic_init();
-	__aeabi_mem_init();
-	__aeabi_bits_init();
-	__aeabi_float_init();
-	__aeabi_double_init();
-	__multicore_init();
+	assert(core == 1 && SystemCurrentCore == 0);
+
+	/* Power off the core */
+	set_bit(&PSM->FRCE_OFF, PSM_FRCE_OFF_proc1_Pos);
+
+	/* Wait for it to be powered off */
+	while ((PSM->DONE & PSM_DONE_proc1_Msk) != 0);
+
+	/* Power it back on */
+	clear_bit(&PSM->FRCE_OFF, PSM_FRCE_OFF_proc1_Pos);
+
+	/* Wait for it to be powered on */
+	while ((PSM->DONE & PSM_DONE_proc1_Msk) == 0);
 }
-PREINIT_SYSINIT_WITH_PRIORITY(runtime_init, RUNTIME_INIT_PRIORITY);
+
+/* IMPORTANT:  Call must ensure the FIFO IRQ are disabled */
+void SystemLaunchCore(uint32_t core, uintptr_t vector_table, uintptr_t stack_pointer, void (*entry_point)(void))
+{
+	assert(core == 1 && SystemCurrentCore == 0);
+
+	const uint32_t boot_cmds[] = { 0, 0, 1, vector_table, stack_pointer, (uintptr_t)entry_point };
+
+	/* Clean up the FIFO status */
+	SIO->FIFO_ST = SIO_FIFO_ST_WOF_Msk | SIO_FIFO_ST_ROE_Msk;
+
+	/* Run the launch state machine */
+	size_t idx = 0;
+	do {
+		/* Flush the fifo if the command is zero */
+		if (boot_cmds[idx] == 0) {
+			SIO->FIFO_ST = SIO_FIFO_ST_ROE_Msk | SIO_FIFO_ST_WOF_Msk;
+			while (SIO->FIFO_ST & SIO_FIFO_ST_VLD_Msk)
+				(void)SIO->FIFO_RD;
+		}
+
+		/* Send the command, is the loop really required? */
+		while ((SIO->FIFO_ST & SIO_FIFO_ST_RDY_Msk) == 0)
+			__WFE();
+
+		/* Send it on the way */
+		SIO->FIFO_WR = boot_cmds[idx];
+
+		/* Kick the other side */
+		__SEV();
+
+		/* Wait for some data */
+		while ((SIO->FIFO_ST & SIO_FIFO_ST_VLD_Msk) == 0)
+			__WFE();
+
+		/* Read the data */
+		uint32_t response = SIO->FIFO_RD;
+
+		/* Kick the other side */
+		__SEV();
+
+		/* Start again if we got a crappy response */
+		if (response != boot_cmds[idx++])
+			idx = 0;
+
+	} while (idx < array_sizeof(boot_cmds));
+}
+
+__noreturn void SystemExitCore(void)
+{
+	assert(SystemCurrentCore == 1);
+
+	/* Hopefully we are going to left with the irq running */
+	void (*wait_for)(void) = rom_func_lookup('W' | ('V' << 8));
+
+	wait_for();
+
+	while (true);
+}
+
+extern void runtime_init(void);
+PREINIT_SYSINIT_WITH_PRIORITY(runtime_init, RUNTIME_SYSTEM_INIT_PRIORITY);
 

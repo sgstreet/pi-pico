@@ -84,4 +84,4 @@ static void diag_init(void)
 	iob_setup_stream(&_stderr, picolibc_diag_putc, picolibc_diag_getc, picolibc_diag_flush, 0, _FDEV_SETUP_RW, 0);
 	iob_setup_stream(&_stddiag, picolibc_diag_putc, picolibc_diag_getc, picolibc_diag_flush, 0, _FDEV_SETUP_RW, 0);
 }
-PREINIT_PLATFORM_WITH_PRIORITY(diag_init, BOARD_PLATFORM_DIAG_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(diag_init, DIAG_PLATFORM_INIT_PRIORITY);

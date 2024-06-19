@@ -17,8 +17,4 @@ else
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
-CPPFLAGS += -I${SOURCE_DIR}/../include
-CFLAGS += -Wno-missing-declarations
-#EXTRA_DEPS := $(filter-out ${CURDIR}/libruntime.a,${EXTRA_DEPS})
-
 endif

@@ -25,7 +25,6 @@ extern void _thrd_release_thrd(void *thrd);
 extern int main(int argc, char **argv);
 extern __weak void main_task(void *context);
 int _main(int argc, char **argv);
-extern void *__tls_size;
 
 static atomic_ulong next_thrd_id = 0;
 static struct tss tss_map[__THRD_KEYS_MAX] = { [0 ... __THRD_KEYS_MAX - 1] = { .used = false, .destructor = 0 } };

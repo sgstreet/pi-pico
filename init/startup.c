@@ -194,13 +194,6 @@ __isr_section __noreturn __weak void _start(void)
 	int argc;
 	char **argv;
 
- 	/* Initialize the tls block */
-	void *__tls_block = alloca((size_t)&__tls_size);
- 	_init_tls(__tls_block);
-
- 	/* Bind the initial TLS block */
- 	_set_tls(__tls_block);
-
 	/* Execute the preinit array */
  	run_init_array(__preinit_array_start, __preinit_array_end);
 

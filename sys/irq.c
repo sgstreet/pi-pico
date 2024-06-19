@@ -72,11 +72,11 @@ __weak uint32_t irq_get_priority(IRQn_Type irq)
 	return NVIC_GetPriority(irq);
 }
 
-__weak void irq_set_core(IRQn_Type irq, uint32_t core)
+__weak void irq_set_affinity(IRQn_Type irq, uint32_t core)
 {
 }
 
-__weak uint32_t irq_get_core(IRQn_Type irq)
+__weak uint32_t irq_get_affinity(IRQn_Type irq)
 {
 	return 0;
 }

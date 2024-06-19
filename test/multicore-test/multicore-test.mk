@@ -24,6 +24,7 @@ TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += sys
 TARGET_OBJ_LIBS += cmsis/device/rp2040
 TARGET_OBJ_LIBS += init
+TARGET_OBJ_LIBS += hardware/rp2040
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 

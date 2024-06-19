@@ -323,4 +323,4 @@ static void hal_pio_init(void)
 	irq_enable(PIO1_IRQ_0_IRQn);
 	irq_enable(PIO1_IRQ_1_IRQn);
 }
-PREINIT_PLATFORM_WITH_PRIORITY(hal_pio_init, HAL_PLATFORM_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(hal_pio_init, HAL_PLATFORM_INIT_PRIORITY);

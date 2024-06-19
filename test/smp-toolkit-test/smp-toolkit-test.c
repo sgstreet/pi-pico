@@ -55,7 +55,7 @@ static void swi_counter_task(void *context)
 		int status = scheduler_futex_wait(&futex, 0, SCHEDULER_WAIT_FOREVER);
 		if (status < 0)
 			syslog_fatal("failed to wait for futex: %d\n", status);
-		++swi_cores[SystemCurrentCore()];
+		++swi_cores[SystemCurrentCore];
 		events = 0;
 	}
 }
@@ -65,9 +65,8 @@ static void hog_task(void *context)
 	struct hog *hog = context;
 
 	while (true) {
-		unsigned int core = SystemCurrentCore();
 		++hog->loops;
-		++hog->cores[core];
+		++hog->cores[SystemCurrentCore];
 		if ((random() & 0x8) == 0) {
 			swi_trigger(5);
 			++swi_kick_counter;
@@ -78,7 +77,7 @@ static void hog_task(void *context)
 
 int main(int argc, char **argv)
 {
-	irq_set_core(SWI_5_IRQn, 1);
+	irq_set_affinity(SWI_5_IRQn, 1);
 	swi_register(5, INTERRUPT_NORMAL, swi_handler, 0);
 	swi_enable(5);
 

@@ -312,4 +312,4 @@ static void hal_dma_init(void)
 	irq_enable(DMA_IRQ_0_IRQn);
 	irq_enable(DMA_IRQ_1_IRQn);
 }
-PREINIT_PLATFORM_WITH_PRIORITY(hal_dma_init, HAL_PLATFORM_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(hal_dma_init, HAL_PLATFORM_INIT_PRIORITY);

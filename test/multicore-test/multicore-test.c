@@ -5,9 +5,9 @@
 #include <board/board.h>
 
 #include <sys/systick.h>
-#include <sys/async.h>
+#include <hardware/rp2040/multicore-event.h>
 
-extern void multicore_post(void *addr);
+#include <sys/async.h>
 
 static unsigned int callback_counter = 0;
 
@@ -31,14 +31,14 @@ int main(int argc, char **argv)
 	static struct async async = { .context = 0, .func = 0, .done = true, .cancel = false };
 
 	while (true) {
-		printf("hello world!: %u\n", callback_counter);
+		printf("!hello world!: %u\n", callback_counter);
 		if ((callback_counter & 0x1f) == 0) {
 			if (async_is_done(&async))
 				async_run(&async, blink_async, 0);
 			else
 				async_cancel(&async);
 		}
-		multicore_post(multicore_callback);
+		multicore_event_post((uintptr_t)multicore_callback);
 		systick_delay(500);
 	}
 }

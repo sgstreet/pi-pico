@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
+#include <sys/tls.h>
 
 #include <cmsis/cmsis.h>
 

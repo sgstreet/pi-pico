@@ -23,7 +23,7 @@ SUBDIRS ?= $(subst ${CURDIR}/,,$(shell find ${CURDIR} -mindepth 2 -maxdepth 2 -n
 #$(info SUBDIRS=${SUBDIRS})
 
 ${SUBDIRS}:
-	@echo "ENTERING $@"
+	@echo "ENTERING $(subst ${BUILD_ROOT}/,,${BUILD_PATH})/$@"
 	+${MAKE} --no-print-directory -C $@ -f $@.mk ${MAKECMDGOALS}
 .PHONY: ${SUBDIRS}
 

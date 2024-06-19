@@ -6,6 +6,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <compiler.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,38 +24,39 @@ __weak int async_run(struct async *async, async_func_t func, void *context)
 	return 0;
 }
 
-__weak bool async_is_done(struct async *async)
+__weak bool async_is_done(const struct async *async)
 {
 	assert(async != 0);
 
 	return async->done;
 }
 
-__weak void async_done(struct async *async)
-{
-	assert(async != 0);
-	async->done = true;
-}
-
-__weak void async_wait(struct async *async)
+__weak int async_wait(struct async *async)
 {
 	assert(async != 0);
 
-	if (async_is_canceled(async))
-		return;
+	if (async_is_canceled(async)) {
+		errno = ECANCELED;
+		return -ECANCELED;
+	}
 
 	async->func(async);
-	async_done(async);
+
+	async->done;
+
+	return 0;
 }
 
-__weak bool async_is_canceled(struct async *async)
+__weak bool async_is_canceled(const struct async *async)
 {
 	assert(async != 0);
+
 	return async->cancel;
 }
 
 __weak void async_cancel(struct async *async)
 {
 	assert(async != 0);
+
 	async->cancel = true;
 }

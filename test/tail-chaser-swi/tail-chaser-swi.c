@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 	for (size_t i = 0; i < NUM_TAILS; ++ i) {
 
 		/* Assign SWI to core, register and enable it */
-		irq_set_core(board_swi_lookup(i), i & 0x1);
+		irq_set_affinity(board_swi_lookup(i), i & 0x1);
 		swi_register(i, INTERRUPT_NORMAL, swi_handler, 0);
 		swi_enable(i);
 

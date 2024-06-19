@@ -67,20 +67,21 @@ extern char __heap_start[];
 extern char __heap_end[];
 extern void *__stack;
 
-extern void *__tdata;
-extern void *__tdata_size;
-extern void *__tbss_size;
-extern void *__tls_size;
-extern void *__tbss_offset;
-extern void *__tls_align;
-extern void *__arm32_tls_tcb_offset;
-extern void *__arm64_tls_tcb_offset;
-
 extern void *__vtor_0;
 extern void *__vtor_1;
 
-extern void *__core_0;
-extern void *__core_1;
+extern char __core_data[];
+extern char __core_data_size[];
+extern char __core_local_0[];
+extern char __core_local_1[];
+
+extern char __tls_block_offset[];
+extern void *__arm32_tls_tcb_offset;
+extern char __tdata_source[];
+extern char __tdata_size[];
+extern char __tbss_size[];
+extern char __tbss_offset[];
+extern char __tls_size[];
 
 extern void *__stack_0;
 extern void *__stack_0_size;

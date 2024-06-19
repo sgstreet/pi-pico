@@ -24,9 +24,11 @@ TARGET_OBJ_LIBS += runtime/pico-bootrom
 TARGET_OBJ_LIBS += runtime/pico-bit-ops
 TARGET_OBJ_LIBS += runtime/pico-int64-ops
 TARGET_OBJ_LIBS += runtime/pico-mem-ops
-TARGET_OBJ_LIBS += runtime/pico-multicore
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
+
+CPPFLAGS += -I${SOURCE_DIR}/include
+CFLAGS += -Wno-missing-declarations
 
 all: ${CURDIR}/libruntime.a
 

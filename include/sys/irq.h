@@ -10,6 +10,7 @@
 	#define __LAST_IRQN 239
 #endif
 #define IRQ_NUM (__LAST_IRQN + 16 + 1)
+#define IRQ_NUM_USER (__LAST_IRQN + 1)
 
 typedef void (*irq_handler_t)(IRQn_Type irq, void *context);
 
@@ -27,8 +28,8 @@ void irq_set_context(IRQn_Type irq, void *context);
 void irq_set_priority(IRQn_Type irq, uint32_t priority);
 uint32_t irq_get_priority(IRQn_Type irq);
 
-void irq_set_core(IRQn_Type irq, uint32_t core);
-uint32_t irq_get_core(IRQn_Type irq);
+void irq_set_affinity(IRQn_Type irq, uint32_t core);
+uint32_t irq_get_affinity(IRQn_Type irq);
 
 void irq_enable(IRQn_Type irq);
 void irq_disable(IRQn_Type irq);

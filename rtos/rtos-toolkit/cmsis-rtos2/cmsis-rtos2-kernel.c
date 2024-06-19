@@ -12,7 +12,6 @@ struct rtos_kernel *rtos2_kernel = 0;
 
 extern __weak void *_rtos2_alloc(size_t size);
 extern __weak void _rtos2_release(void *ptr);
-extern void *__tls_size;
 
 __weak void *_rtos2_alloc(size_t size)
 {

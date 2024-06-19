@@ -125,5 +125,5 @@ static void hal_periodic_init(void)
 		irq_enable(TIMER_IRQ_0_IRQn + i);
 	}
 }
-PREINIT_PLATFORM_WITH_PRIORITY(hal_periodic_init, HAL_PLATFORM_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(hal_periodic_init, HAL_PLATFORM_INIT_PRIORITY);
 

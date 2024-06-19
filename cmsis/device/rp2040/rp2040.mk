@@ -17,4 +17,6 @@ else
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 
+CPPFLAGS += -I${PROJECT_ROOT}/runtime/include
+
 endif

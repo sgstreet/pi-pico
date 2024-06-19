@@ -245,7 +245,7 @@ static void systick_handler(void *context)
 	scheduler_tick();
 
 	/* Send to the cmsis timer tick */
-	if (SystemCurrentCore() == 0)
+	if (SystemCurrentCore == 0)
 		osTimerTick();
 }
 
@@ -297,7 +297,7 @@ unsigned long scheduler_num_cores(void)
 
 unsigned long scheduler_current_core(void)
 {
-	return SystemCurrentCore();
+	return SystemCurrentCore;
 }
 
 extern void multicore_post(uintptr_t event);
@@ -311,18 +311,18 @@ void scheduler_request_switch(unsigned long core)
 	}
 
 	/* System interrupt must be sent directly to the other core */
-	multicore_post(0x90000000 | (PendSV_IRQn + 16));
+//	multicore_post(0x90000000 | (PendSV_IRQn + 16));
 }
 
-static void multicore_trap(void)
-{
-	abort();
-}
+//static void multicore_trap(void)
+//{
+//	abort();
+//}
 
 void init_fault(void);
 void init_fault(void)
 {
-	multicore_post((uintptr_t)multicore_trap);
+//	multicore_post((uintptr_t)multicore_trap);
 }
 
 static void mulitcore_scheduler_run(struct async *async)

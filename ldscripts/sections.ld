@@ -37,130 +37,127 @@ SECTIONS
 	PROVIDE(__stack_1_size = LENGTH(CORE1) - 1024);
 
 	__start__ = ORIGIN(TEXT);
-	
-	/* Second stage bootloader is prepended to the image. It must be 256 bytes big
+
+	/*
+	   Second stage bootloader is prepended to the image. It must be 256 bytes big
 	   and checksummed. It is usually built by the boot_stage2 target
 	   in the Raspberry Pi Pico SDK
-   */
-	.boot2 : 
+	*/
+	.boot2 :
 	{
 		__boot2_start__ = .;
 		KEEP (*(.bootstrap))
 		KEEP (*(.boot2))
 		__boot2_end__ = .;
 	} > BOOTSTRAP
-	
+
 	.vector :
 	{
 		. = ALIGN(4);
-		
+
 		__vector_start__ = .;
 		KEEP(*(.vector))
 		__vector_end__ = .;
-		
-			
+
 		*(.after_vector.* .after_vector)
-	
+
 	} > ISR
 	__vector = LOADADDR(.vector);
 	__vector_size = __vector_end__ - __vector_start__;
 
-    .text : 
-    {
-    	. = ALIGN(4);
-    	__text_start__ = .;
-    	
+	.text :
+	{
+		. = ALIGN(4);
+		__text_start__ = .;
+
 		*(.isr .isr.*)
-		        
-/*		*(.text .text.*)*/
-		        
-        *(.init)
-        *(EXCLUDE_FILE(*libgcc.a: *libc.a:*mem*.o *libm.a:) .text*)
-        *(.fini)
 
-        /* Pull all c'tors into .text */
-        *crtbegin.o(.ctors)
-        *crtbegin?.o(.ctors)
-        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
-        *(SORT(.ctors.*))
-        *(.ctors)
+		*(.init)
+		*(EXCLUDE_FILE(*libgcc.a: *libc.a:*mem*.o *libm.a:) .text*)
+		*(.fini)
 
-        /* Followed by destructors */
-        *crtbegin.o(.dtors)
-        *crtbegin?.o(.dtors)
-        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
-        *(SORT(.dtors.*))
-        *(.dtors)
+		/* Pull all c'tors into .text */
+		*crtbegin.o(.ctors)
+		*crtbegin?.o(.ctors)
+		*(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
+		*(SORT(.ctors.*))
+		*(.ctors)
 
-        *(.eh_frame*)
-        . = ALIGN(4);
-        __text_end__ = .;
-        
-    } > TEXT
+		/* Followed by destructors */
+		*crtbegin.o(.dtors)
+		*crtbegin?.o(.dtors)
+		*(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
+		*(SORT(.dtors.*))
+		*(.dtors)
+
+		*(.eh_frame*)
+		. = ALIGN(4);
+		__text_end__ = .;
+
+	} > TEXT
 	__text = LOADADDR(.text);
-	__text_size = __text_end__ - __text_start__;		
-	
+	__text_size = __text_end__ - __text_start__;
+
 	.inits :
 	{
 		. = ALIGN(4);
 		__inits_start__ = .;
-		
-		 /* The preinit arrays */ 
+
+		 /* The preinit arrays */
 		. = ALIGN(4);
 		PROVIDE_HIDDEN(__preinit_array_start = .);
-		
+
 		KEEP(*(SORT(.preinit_array_sysinit.*)))
 		KEEP(*(.preinit_array_sysinit))
-		
+
 		KEEP(*(SORT(.preinit_array_platform.*)))
 		KEEP(*(.preinit_array_platform))
-		
+
 		KEEP(*(SORT(preinit_array.*)))
 		KEEP(*(.preinit_array))
-		
+
 		PROVIDE_HIDDEN(__preinit_array_end = .);
-		
+
 		/* init data */
 		. = ALIGN(4);
 		PROVIDE_HIDDEN(__init_array_start = .);
 		KEEP(*(SORT(.init_array.*)))
 		KEEP(*(.init_array))
 		PROVIDE_HIDDEN(__init_array_end = .);
-		
+
 		/* fini data */
 		. = ALIGN(4);
 		PROVIDE_HIDDEN(__fini_array_start = .);
 		KEEP(*(SORT(.fini_array.*)))
 		KEEP(*(.fini_array))
 		PROVIDE_HIDDEN(__fini_array_end = .);
-		
+
 		. = ALIGN(4);
 		__inits_end__ = .;
-		
+
 	} > RODATA
 	__inits = LOADADDR(.inits);
 	__inits_size = __inits_end__ - __inits_start__;
-	
-	.rodata : 
+
+	.rodata :
 	{
 		. = ALIGN(4);
 		__rodata_start__ = .;
-/*		*(.rodata .rodata.*)*/
 		*(EXCLUDE_FILE(*libgcc.a: *libc.a:*mem*.o *libm.a:) .rodata*)
 		. = ALIGN(4);
 		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.flashdata*)))
-		
+
 		. = ALIGN(4);
 		PROVIDE_HIDDEN(__systick_array_start = .);
 		KEEP(*(SORT(.systick_array.*)))
 		KEEP(*(.systick_array))
 		PROVIDE_HIDDEN(__systick_array_end = .);
-		
+
 		. = ALIGN(4);
 		PROVIDE_HIDDEN(__shell_cmd_start = .);
 		KEEP(*(.shell_cmd));
 		PROVIDE_HIDDEN(__shell_cmd_end = .);
-		
+
 		. = ALIGN(4);
 		__rodata_end__ = .;
 	} > RODATA
@@ -178,114 +175,106 @@ SECTIONS
 	} > RODATA
 	__extab_size = __extab_end__ - __extab_start__;
 
-    .ARM.exidx :
-    {
+	.ARM.exidx :
+	{
 		. = ALIGN(4);
-	    __exidx_start__ = .;
-	    __exidx_start = .;
-        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-	    __exidx_end = .;
-	    __exidx_end__ = .;
-    } > RODATA
+		__exidx_start__ = .;
+		__exidx_start = .;
+		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
+		__exidx_end = .;
+		__exidx_end__ = .;
+	} > RODATA
 	__exidx_size = __exidx_end__ - __exidx_start__;
 
 	__unwind_info = LOADADDR(.ARM.extab);
 	__unwind_info_size =  (__extab_size) + (__exidx_size);
 
-    __etext = .;
-	
+	__etext = .;
+
 	.vtor_0 (NOLOAD) :
 	{
 		FILL(0xff)
 		. = ALIGN(256);
-		__vtor_0_start__ = .;
-
 		. += __vector_size;
-
 		. = ALIGN(4);
-		__vtor_0_end__ = .;
-    } > CORE0
+	} > CORE0
 	__vtor_0 = LOADADDR(.vtor_0);
-	__vtor_0_size = __vtor_0_end__ - __vtor_0_start__;
+	__vtor_0_size = SIZEOF(.vtor_0);
 
 	.vtor_1 (NOLOAD) :
 	{
 		FILL(0xff)
 		. = ALIGN(256);
-		__vtor_1_start__ = .;
-
 		. += __vector_size;
-
 		. = ALIGN(4);
-		__vtor_1_end__ = .;
-    } > CORE1
+	} > CORE1
 	__vtor_1 = LOADADDR(.vtor_1);
-	__vtor_1_size = __vtor_1_end__ - __vtor_1_start__;
+	__vtor_1_size = SIZEOF(.vtor_1);
 
-
-	.core_0 (NOLOAD) :
+	.core_local_0 (NOLOAD) :
 	{
 		FILL(0x00)
-		. = ALIGN(4);
-		__core_0_start__ = .;
 
-		. = ALIGN(4);
-		__core_0_data__ = .;
+		. = ALIGN(__core_align);
 		. += __core_data_size;
 
+		. = ALIGN(__tls_align);
+		__core_local_tls_0 = .;
+		. += __tls_size;
+
 		. = ALIGN(4);
-		__core_0_end__ = .;
 
 	} > CORE0
-	__core_0 = LOADADDR(.core_0);
-	__core_0_size = SIZEOF(.core_0);
+	__core_local_0 = LOADADDR(.core_local_0);
+	__core_local_0_size = SIZEOF(.core_local_0);
+	__tls_block_offset = __core_local_tls_0 - __core_local_0;
 
-	.core_1 (NOLOAD) :
+	.core_local_1 (NOLOAD) :
 	{
 		FILL(0x00)
-		. = ALIGN(4);
-		__core_1_start__ = .;
 
-		. = ALIGN(4);
-		__core_1_data__ = .;
+		. = ALIGN(__core_align);
 		. += __core_data_size;
 
-		. = ALIGN(8);
-		__core_1_end__ = .;
+		. = ALIGN(__tls_align);
+		__core_local_tls_1 = .;
+		. += __tls_size;
+
+		. = ALIGN(4);
 
 	} > CORE1
-	__core_1 = LOADADDR(.core_1);
-	__core_1_size = SIZEOF(.core_1);
+	__core_local_1 = LOADADDR(.core_local_1);
+	__core_local_1_size = SIZEOF(.core_local_1);
 
 	.fast :
 	{
-    	. = ALIGN(4);
-    	__fast_start__ = .;
-    	
+		. = ALIGN(4);
+		__fast_start__ = .;
+
 		*(.fast .fast.*);
-        *(.time_critical .time_critical*)
-        *(.text .text*)
-        
-    	. = ALIGN(4);
-    	__fast_end__ = .;
+		*(.time_critical .time_critical*)
+		*(.text .text*)
+
+		. = ALIGN(4);
+		__fast_end__ = .;
 	} > FAST AT > RODATA
 	__fast = LOADADDR(.fast);
 	__fast_size = __fast_end__ - __fast_start__;
 
-	.data : 
+	.data :
 	{
 		. = ALIGN(4);
 		__data_start__ = .;
-		
+
 		/* fast .rodata; i.e. stuff we exclude above because we want it in RAM */
 		*(.rodata .rodata.*)
-		
+
 		. = ALIGN(4);
 		*(.data .data.*)
-		
+
 		. = ALIGN(4);
 		*(.after_data .after_data.*)
-		
+
 		. = ALIGN(4);
 		__data_end__ = .;
 	} > DATA AT> RODATA
@@ -306,32 +295,34 @@ SECTIONS
 	} > RODATA
 	__core_data = LOADADDR(.core_data);
 	__core_data_size = SIZEOF(.core_data);
-	
+	__core_align = ALIGNOF(.core_data);
+
 	.tdata :
 	{
 		. = ALIGN(4);
 		__tdata_start__ = .;
-		
+
 		*(.tdata .tdata.* .gnu.linkonce.td.*)
-		
+
 		__tdata_end__ = .;
 		. = ALIGN(4);
-	} > DATA AT> RODATA
+
+	} > RODATA
 	__tdata = LOADADDR(.tdata);
 	__tdata_size = SIZEOF(.tdata);
 	__tdata_source = __tdata;
-	__tdata_source_end = __tdata + __tdata_size;	
-	
+	__tdata_source_end = __tdata + __tdata_size;
+
 	__end__ = LOADADDR(.tdata) + SIZEOF(.tdata);
 
 	.tbss (NOLOAD) :
 	{
 		. = ALIGN(4);
 		__tbss_start__ = .;
-		
+
 		*(.tbss .tbss.* .gnu.linkonce.tb.*)
 		*(.tcommon)
-		
+
 		. = ALIGN(4);
 		__tbss_end__ = .;
 	} > BSS
@@ -341,18 +332,18 @@ SECTIONS
 	__tls_align = MAX(ALIGNOF(.tdata), ALIGNOF(.tbss));
 	__arm32_tls_tcb_offset = MAX(8, __tls_align);
 	__arm64_tls_tcb_offset = MAX(16, __tls_align);
-	
-	.bss (NOLOAD) : 
+
+	.bss (NOLOAD) :
 	{
 		. = ALIGN(4);
 		__bss_start__ = .;
-		
+
 		*(.bss_begin .bss_begin.*)
 		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.bss*)))
-        *(.bss .bss.*)
+		*(.bss .bss.*)
 		*(COMMON)
 		*(.bss_end .bss_end.*)
-		
+
 		. = ALIGN(4);
 		__bss_end__ = .;
 	} > BSS
@@ -368,18 +359,26 @@ SECTIONS
 		LONG(__vtor_0)
 		LONG(__vtor_0_size)
 
+		LONG(__core_data)
+		LONG(__core_local_0)
+		LONG(__core_data_size)
+
+		LONG(__tdata)
+		LONG(__core_local_tls_0)
+		LONG(__tdata_size)
+
 		LONG(__vector)
 		LONG(__vtor_1)
 		LONG(__vtor_1_size)
 
 		LONG(__core_data)
-		LONG(__core_0_data__)
+		LONG(__core_local_1)
 		LONG(__core_data_size)
 
-		LONG(__core_data)
-		LONG(__core_1_data__)
-		LONG(__core_data_size)
-		
+		LONG(__tdata)
+		LONG(__core_local_tls_1)
+		LONG(__tdata_size)
+
 		LONG(__fast)
 		LONG(__fast_start__)
 		LONG(__fast_size)
@@ -387,7 +386,7 @@ SECTIONS
 		LONG(__data)
 		LONG(__data_start__)
 		LONG(__data_size)
-		
+
 		__copy_table_end__ = .;
 	} > RODATA
 
@@ -395,10 +394,10 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		__zero_table_start__ = .;
-		
+
 		LONG(__bss_start__)
 		LONG(__bss_size)
-		
+
 		__zero_table_end__ = .;
 	} > RODATA
 

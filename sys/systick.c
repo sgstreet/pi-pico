@@ -6,6 +6,7 @@
 
 #include <cmsis/cmsis.h>
 
+#include <sys/tls.h>
 #include <sys/irq.h>
 #include <sys/systick.h>
 
@@ -105,4 +106,4 @@ void systick_init(void)
 	/* Enable tick interrupt */
 	irq_enable(SysTick_IRQn);
 }
-PREINIT_SYSINIT_WITH_PRIORITY(systick_init, SYSTICK_SYSTEM_INIT_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(systick_init, SYSTICK_PLATFORM_INIT_PRIORITY);

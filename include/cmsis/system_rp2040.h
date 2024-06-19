@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <compiler.h>
+
 #define RP2040_CLOCK_GPIO0 0UL
 #define RP2040_CLOCK_GPIO1 1UL
 #define RP2040_CLOCK_GPIO2 2UL
@@ -17,6 +19,8 @@ extern "C" {
 #define RP2040_CLOCK_RTC 9UL
 #define RP2040_NUM_CLOCKS (RP2040_CLOCK_RTC + 1)
 
+#define SystemCurrentCore (*system_current_core)
+
 extern uint32_t SystemCoreClock;
 extern const uint32_t SystemNumCores;
 
@@ -28,12 +32,7 @@ extern void SystemCoreClockUpdate(void);
 
 extern void SystemResetCore(uint32_t core);
 extern void SystemLaunchCore(uint32_t core, uintptr_t vector_table, uintptr_t stack_pointer, void (*entry_point)(void));
-extern __attribute__((noreturn)) void SystemExitCore(void);
-
-static inline uint32_t SystemCurrentCore(void)
-{
-	return *system_current_core;
-}
+extern __noreturn void SystemExitCore(void);
 
 #ifdef __cplusplus
 }

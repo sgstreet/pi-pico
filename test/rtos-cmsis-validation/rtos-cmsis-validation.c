@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/fault.h>
+#include <sys/tls.h>
+
 #include <diag/diag.h>
 
 #include "cmsis_rv2.h"
