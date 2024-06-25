@@ -62,12 +62,27 @@ static void multicore_irq_pend_cmd(IRQn_Type irq)
 			NVIC_SetPendingIRQ(irq);
 			break;
 	}
+
+	__DMB();
 }
 
 static void multicore_irq_clear_cmd(IRQn_Type irq)
 {
-	/* NVIC interrupt */
-	NVIC_ClearPendingIRQ(irq);
+	switch (irq) {
+
+		case PendSV_IRQn:
+			SCB->ICSR = SCB_ICSR_PENDSVCLR_Msk;
+			break;
+
+		case SysTick_IRQn:
+			SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;
+			break;
+
+		default:
+			NVIC_ClearPendingIRQ(irq);
+			break;
+	}
+
 	__DMB();
 }
 

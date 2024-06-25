@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <alloca.h>
+#include <config.h>
 
 #include <sys/syslog.h>
 #include <sys/irq.h>

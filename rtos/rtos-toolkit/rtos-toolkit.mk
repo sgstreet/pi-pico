@@ -13,7 +13,7 @@
 
 ifeq ($(findstring ${BUILD_ROOT},${CURDIR}),)
 
-SUBDIRS := cmsis-rtos2 threads
+#SUBDIRS := cmsis-rtos2 threads multicore
 
 include ${PROJECT_ROOT}/tools/makefiles/target.mk
 else

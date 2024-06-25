@@ -80,7 +80,7 @@ void Th_Sig_Wakeup (void __attribute__((unused)) *arg)
 {
   osDelay(10);
   /* Send signal back to the main thread */
-//  ASSERT_TRUE (osThreadFlagsSet (ThreadId, 1U) == 0U);
+/*  ASSERT_TRUE (osThreadFlagsSet (ThreadId, 1U) == 0U);  This is wrong set doc the osThreadFlagSet */
   ASSERT_TRUE (osThreadFlagsSet (ThreadId, 1U) == 1U);
 
   /* Explicitly terminate this thread */

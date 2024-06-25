@@ -1,11 +1,29 @@
-#ifndef _RTOS_TOOLKIT_CMSIS_OS2_H_
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2.h
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
+ #ifndef _RTOS_TOOLKIT_CMSIS_OS2_H_
 #define _RTOS_TOOLKIT_CMSIS_OS2_H_
 
 #include <stdatomic.h>
+#include <stdint.h>
 #include <compiler.h>
-#include <linked-list.h>
 
+#include <cmsis/cmsis.h>
+#include <linked-list.h>
 #include <sys/spinlock.h>
+#include <rtos/rtos-toolkit/scheduler.h>
+
+#include <cmsis/rtos2/cmsis_os2.h>
 
 #define RTOS_KERNEL_MARKER 0x42000024UL
 #define RTOS_THREAD_MARKER 0x42011024UL
@@ -18,7 +36,8 @@
 #define RTOS_DEQUE_MARKER 0x42088024UL
 
 #define osDynamicAlloc 0x80000000U
-#define osReapThread 0x40000000UL
+#define osReapThread 0x40000000U
+#define osThreadCreateSuspended 0x20000000U
 
 #define RTOS_NAME_SIZE 32UL
 #define RTOS_DEFAULT_STACK_SIZE 1024UL
@@ -27,9 +46,9 @@
 #define osOnceFlagsInit 0
 
 typedef uint32_t osResourceMarker_t;
-typedef atomic_int osOnceFlag_t;
+typedef atomic_long osOnceFlag_t;
 typedef osOnceFlag_t *osOnceFlagId_t;
-typedef void (*osOnceFunc_t)(void);
+typedef void (*osOnceFunc_t)(osOnceFlagId_t flag_id, void *context);
 
 typedef struct linked_list *osResourceNode_t;
 typedef void *osResource_t;
@@ -110,6 +129,7 @@ struct rtos_semaphore
 struct rtos_thread
 {
 	osResourceMarker_t marker;
+	char name[RTOS_NAME_SIZE];
 
 	uint32_t attr_bits;
 	osThreadFunc_t func;
@@ -255,7 +275,7 @@ uint32_t osDequeGetSpace(osDequeId_t dq_id);
 osStatus_t osDequeReset(osDequeId_t dq_id);
 osStatus_t osDequeDelete(osDequeId_t dq_id);
 
-void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func);
+void osCallOnce(osOnceFlagId_t flag, osOnceFunc_t func, void *context);
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node);
 osStatus_t osKernelResourceRemove(osResourceId_t resource_id, osResourceNode_t node);
@@ -299,12 +319,12 @@ static inline __always_inline __optimize osStatus_t osIsResourceValid(osResource
 
 static inline __always_inline __optimize uint32_t osSchedulerPriority(osPriority_t rtos2_priority)
 {
-	return SCHEDULER_MIN_TASK_PRIORITY - rtos2_priority;
+	return osPriorityISR - rtos2_priority;
 }
 
 static inline __always_inline __optimize osPriority_t osKernelPriority(uint32_t scheduler_priority)
 {
-	return SCHEDULER_MIN_TASK_PRIORITY - scheduler_priority;
+	return osPriorityISR - scheduler_priority;
 }
 
 osStatus_t osMemoryPoolIsBlockValid(osMemoryPoolId_t mp_id, void *block);

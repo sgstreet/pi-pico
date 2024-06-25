@@ -1,9 +1,22 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2-mutex.c
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <container-of.h>
+#include <compiler.h>
 
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos.h>
 
 extern void *_rtos2_alloc(size_t size);
 extern void _rtos2_release(void *ptr);
@@ -117,7 +130,7 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
 		/* Nope wait for the lock */
 		int status = scheduler_futex_wait(&mutex->futex, expected, timeout);
 		if (status < 0)
-			return status == -ETIMEDOUT ? osErrorTimeout : osError;
+			return status == -ETIMEDOUT || status == -ECANCELED ? osErrorTimeout : osError;
 
 		/* We have requested contention tracking, we might own the mutex now */
 		if (value == (mutex->value & ~SCHEDULER_FUTEX_CONTENTION_TRACKING))
@@ -156,7 +169,7 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
 	if ((mutex->attr_bits & osMutexRecursive) && --mutex->count > 0)
 		return osOK;
 
-	/* Hot path unlock in the non-contented case */
+	/* Hot path unlock in the non-contended case */
 	long expected = (long)scheduler_task();
 	if (mutex->value == expected && atomic_compare_exchange_strong(&mutex->value, &expected, 0))
 		return osOK;

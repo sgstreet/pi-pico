@@ -183,7 +183,7 @@ void TC_osMessageQueueGetName_1 (void) {
   MessageQueueId   = id;
   MessageQueueName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(MessageQueueName, name) == 0U);
+/*  ASSERT_TRUE (strcmp(MessageQueueName, name) == 0U); Do not pass 0 to strcmp, see doc for osMessageQueueGetName */
   ASSERT_TRUE (MessageQueueName == 0U);
 
   /* Delete message queue object */
@@ -340,6 +340,9 @@ void Irq_osMessageQueuePut_2 (void) {
   uint32_t cnt;
   uint32_t msg;
 
+  /* Check that the number of available message slots is correct */
+  ASSERT_TRUE (osMessageQueueGetSpace (MessageQueueId) == MSGQ_CNT);
+
   /* Fill the message queue with messages */
   msg = 1U;
   cnt = MSGQ_CNT;
@@ -348,8 +351,6 @@ void Irq_osMessageQueuePut_2 (void) {
     ASSERT_TRUE (osMessageQueuePut (MessageQueueId, &msg, 0U, 0U) == osOK);
     msg++;
   }
-  /* Check that the message queue is full */
-  ASSERT_TRUE (osMessageQueueGetSpace (MessageQueueId) == 0U);
 
   /* Call osMessageQueuePut when the message queue is full */
   ASSERT_TRUE (osMessageQueuePut (MessageQueueId, &msg, 0U, 0U) == osErrorResource);
@@ -506,6 +507,9 @@ void Irq_osMessageQueueGet_2 (void) {
   uint32_t msg;
   uint32_t msg_out;
 
+  /* Check that the number of enqueued messages is correct */
+  ASSERT_TRUE (osMessageQueueGetCount(MessageQueueId) == MSGQ_CNT);
+
   msg = 1U;
   cnt = MSGQ_CNT;
 
@@ -514,8 +518,6 @@ void Irq_osMessageQueueGet_2 (void) {
     ASSERT_TRUE (msg == msg_out);
     msg++;
   }
-  /* Check that the message queue is empty */
-  ASSERT_TRUE (osMessageQueueGetSpace (MessageQueueId) == MSGQ_CNT);
 
   /* Call osMessageQueueGet when the message queue is empty */
   ASSERT_TRUE (osMessageQueueGet (MessageQueueId, &msg_out, NULL, 0U) == osErrorResource);

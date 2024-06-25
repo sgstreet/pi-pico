@@ -64,9 +64,6 @@
 
 extern void *rom_func_lookup(uint32_t);
 
-const uint32_t SystemNumCores = 2;
-volatile uint32_t *const system_current_core = (volatile uint32_t *const)&(SIO->CPUID);
-
 uint32_t SystemCoreClock = BOARD_CLOCK_SYS_HZ;
 uint32_t rp2040_clocks[RP2040_NUM_CLOCKS] =
 {

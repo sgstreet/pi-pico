@@ -40,7 +40,7 @@ static const struct field_desc task_layout[] =
 	DEBUGGER_FIELD(struct task, state),
 	DEBUGGER_FIELD(struct task, core),
 	DEBUGGER_FIELD(struct task, current_priority),
-	DEBUGGER_FIELD(struct task, name),
+//	DEBUGGER_FIELD(struct task, name),
 	DEBUGGER_FIELD(struct task, scheduler_node.next),
 	DEBUGGER_FIELD(struct task, marker),
 	{ 0, 0, sizeof(struct task) },

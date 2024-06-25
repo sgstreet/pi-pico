@@ -185,7 +185,7 @@ void TC_osMemoryPoolGetName_1 (void) {
   MemoryPoolId   = id;
   MemoryPoolName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(MemoryPoolName, name) == 0U);
+/*  ASSERT_TRUE (strcmp(MemoryPoolName, name) == 0U); Do not pass 0 to strcmp, see doc for osMemoryPoolGetName */
   ASSERT_TRUE (MemoryPoolName == 0U);
 
   /* Delete memory pool object */

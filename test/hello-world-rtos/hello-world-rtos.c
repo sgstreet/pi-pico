@@ -33,7 +33,7 @@ static void main_task(void *context)
 static void task_exit_handler(struct task *task)
 {
 	assert(task != 0);
-	printf("%s exited\n", task->name);
+	printf("%p exited\n", task);
 }
 
 int _main(int argc, char **argv)
@@ -51,7 +51,6 @@ int _main(int argc, char **argv)
 	/* Setup the main task */
 	struct arguments args = { .argc = argc, .argv = argv, .ret = 0 };
 	struct task_descriptor main_task_descriptor;
-	strcpy(main_task_descriptor.name, "main-task");
 	main_task_descriptor.entry_point = main_task;
 	main_task_descriptor.exit_handler = task_exit_handler;
 	main_task_descriptor.context = &args;

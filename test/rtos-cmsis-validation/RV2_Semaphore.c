@@ -265,7 +265,7 @@ void TC_osSemaphoreGetName_1 (void) {
   SemaphoreId   = id;
   SemaphoreName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(SemaphoreName, name) == 0U);
+/*  ASSERT_TRUE (strcmp(SemaphoreName, name) == 0U); Do not pass 0 to strcmp, see doc for osSemaphoreGetName */
   ASSERT_TRUE (SemaphoreName == 0U);
 
   /* Delete semaphore object */

@@ -1,9 +1,21 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2-timer.c
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #include <stdlib.h>
 #include <string.h>
-#include <container-of.h>
-#include <sys/systick.h>
+#include <compiler.h>
 
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos.h>
 
 extern void *_rtos2_alloc(size_t size);
 extern void _rtos2_release(void *ptr);
@@ -29,9 +41,11 @@ __weak void _rtos2_release_timer(struct rtos_timer *timer)
 	_rtos2_release(timer);
 }
 
-void osTimerTick(void)
+void scheduler_tick_hook(unsigned long ticks)
 {
-	uint32_t ticks = scheduler_get_ticks();
+	/* Drop if not the first core in a multicore system */
+	if (scheduler_current_core() != 0)
+		return;
 
 	/* Work to do? */
 	while (!list_is_empty(&active_timers) && list_first_entry(&active_timers, struct rtos_timer, node)->target <= ticks) {
@@ -88,7 +102,7 @@ static void osTimerThread(void *context)
 	}
 }
 
-static void osTimerThreadInit(void)
+static void osTimerThreadInit(osOnceFlagId_t flag_id, void *context)
 {
 	/* Create the time message queue */
 	osMessageQueueAttr_t queue_attr = { .name = "osTimerQueue" };
@@ -97,7 +111,7 @@ static void osTimerThreadInit(void)
 		abort();
 
 	/* Create the thread thread */
-	osThreadAttr_t thread_attr = { .name = "osTimerThread", .stack_size = RTOS_DEFAULT_STACK_SIZE, .priority = osPriorityNormal };
+	osThreadAttr_t thread_attr = { .name = "osTimerThread", .stack_size = RTOS_DEFAULT_STACK_SIZE, .priority = osPriorityAboveNormal };
 	timer_thread = osThreadNew(osTimerThread, 0, &thread_attr);
 	if (!timer_thread)
 		abort();
@@ -190,7 +204,7 @@ osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks)
 	struct rtos_timer *timer = timer_id;
 
 	/* Start the timer thread and initialize the message if needed */
-	osCallOnce(&timer_thread_init, osTimerThreadInit);
+	osCallOnce(&timer_thread_init, osTimerThreadInit, 0);
 
 	/* Set the tick time */
 	timer->ticks = ticks;

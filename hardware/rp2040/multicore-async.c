@@ -45,11 +45,14 @@ static __noreturn void multicore_async_monitor(void)
 		/* Forward */
 		async->func(async);
 
-		/* Mark always */
+		/* Mark always done */
 		async->done = true;
 
 		/* Clean up */
 		multicore_async = 0;
+
+		/* Kick any waiters */
+		__SEV();
 	}
 }
 
@@ -64,6 +67,9 @@ int async_run(struct async *async, async_func_t func, void *context)
 
 	/* Launch the async */
 	multicore_async = (uintptr_t)async;
+
+	/* Kick the other core */
+	__SEV();
 
 	/* All good */
 	return 0;

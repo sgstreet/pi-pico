@@ -60,7 +60,7 @@ void Th_EventFlagsWakeup (void __attribute__((unused)) *arg)
 {
   osDelay(10);
   /* Send signal back to the main thread */
-//  ASSERT_TRUE (osEventFlagsSet (EventFlagsId, 1U) == 0U);
+/*  ASSERT_TRUE (osEventFlagsSet (EventFlagsId, 1U) == 0U); This incorrect, see doc for osEventFlagsSet */
   ASSERT_TRUE (osEventFlagsSet (EventFlagsId, 1U) == 1U);
 
   /* Explicitly terminate this thread */
@@ -636,7 +636,7 @@ void TC_osEventFlagsGetName_1 (void) {
   EventFlagsId   = id;
   EventFlagsName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(EventFlagsName, name) == 0U);
+/*  ASSERT_TRUE (strcmp(EventFlagsName, name) == 0U); You should not pass 0 to strcmp */
   ASSERT_TRUE (EventFlagsName == 0U);
 
   /* Delete event flags object */
@@ -788,7 +788,6 @@ void TC_EventFlagsDeleteWaiting (void) {
     ASSERT_TRUE (id != NULL);
 
     /* Delete event flags object */
-    stat =
     ASSERT_TRUE (osEventFlagsDelete (EventFlagsId) == osOK);
 
     /* Terminate thread */

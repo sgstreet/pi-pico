@@ -421,7 +421,7 @@ void TC_osThreadGetName_1 (void) {
   ThreadId   = id;
   ThreadName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(ThreadName, name) == 0U);
+/*  ASSERT_TRUE (strcmp(ThreadName, name) == 0U); This is wrong, see doc */
   ASSERT_TRUE (ThreadName == 0U);
 
   /* Delete thread object */
@@ -1030,7 +1030,7 @@ void TC_osThreadResume_2 (void) {
   SemaphoreId    = osSemaphoreNew(1U, 1U, NULL);
   EventFlagsId   = osEventFlagsNew(NULL);
   MessageQueueId = osMessageQueueNew(1U, 1U, NULL);
-//  MemoryPoolId   = osMemoryPoolNew(1U, 1U, NULL);
+/*  MemoryPoolId   = osMemoryPoolNew(1U, 1U, NULL); We need a min block size of 8 for pointer alignments */
   MemoryPoolId   = osMemoryPoolNew(1U, 8U, NULL);
 
   /* Create initial conditions */
@@ -1688,7 +1688,7 @@ void TC_osThreadGetStackSpace_1 (void) {
 
   /* Call osThreadGetStackSpace to retrieve the unused stack space of a ready thread */
   size = osThreadGetStackSpace(id);
-//  ASSERT_TRUE (size < 128U);
+/*  ASSERT_TRUE (size < 128U); Our stack size is some what inflated to book keeping purposes so my have reached limit */
   ASSERT_TRUE (size <= 128U);
   ASSERT_TRUE (size > 0U);
 

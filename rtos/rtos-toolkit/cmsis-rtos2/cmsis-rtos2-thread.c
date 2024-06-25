@@ -1,9 +1,23 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2-thread.c
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <compiler.h>
 
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos.h>
 
 #define RTOS_REAPER_EXIT 0x00000001
 #define RTOS_REAPER_CLEAN 0x00000002
@@ -54,7 +68,7 @@ __weak void _rtos2_release_thread(struct rtos_thread *thread)
 
 __weak void _rtos2_thread_stack_overflow(struct rtos_thread *thread)
 {
-	fprintf(stderr, "stack overflow: %s %p\n", scheduler_get_name(thread->stack), thread);
+	fprintf(stderr, "stack overflow: %s %p\n", thread->name, thread);
 }
 
 static osStatus_t osCaptureOwnedRobustMutexes(const osResource_t resource, void *context)
@@ -201,7 +215,7 @@ static void osThreadReaper(void *context)
 	abort();
 }
 
-static void osThreadReaperInit(void)
+static void osThreadReaperInit(osOnceFlagId_t flag_id, void *context)
 {
 	/* Create the reaper thread */
 	osThreadAttr_t attr = { .name = "osThreadReaper", .stack_size = RTOS_DEFAULT_STACK_SIZE, .priority = osPriorityNormal };
@@ -314,6 +328,7 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void *argument, const osThreadAttr
 		return 0;
 
 	/* Initialize the remain parts of the thread */
+	strncpy(new_thread->name, (attr->name ? attr->name : ""), RTOS_NAME_SIZE - 1);
 	new_thread->marker = RTOS_THREAD_MARKER;
 	new_thread->func = func;
 	new_thread->context = argument;
@@ -331,11 +346,10 @@ osThreadId_t osThreadNew(osThreadFunc_t func, void *argument, const osThreadAttr
 
 	/* Assemble the scheduler task descriptor */
 	struct task_descriptor desc;
-	strncpy(desc.name, (attr->name ? attr->name : ""), TASK_NAME_LEN - 1);
 	desc.entry_point = osSchedulerTaskEntryPoint;
 	desc.exit_handler = osSchedulerTaskExitHandler;
 	desc.context = new_thread;
-	desc.flags = SCHEDULER_TASK_STACK_CHECK;
+	desc.flags = SCHEDULER_TASK_STACK_CHECK | ((attr->attr_bits & osThreadCreateSuspended) ? SCHEDULER_CREATE_SUSPENDED : 0);
 	desc.priority = osSchedulerPriority(attr->priority == osPriorityNone ? osPriorityNormal : attr->priority);
 
 	/* Add it to the kernel thread resource list */
@@ -386,8 +400,7 @@ const char *osThreadGetName(osThreadId_t thread_id)
 
 
 	/* Return the name */
-	struct task *task = ((struct rtos_thread *)thread_id)->stack;
-	return strlen(task->name) > 0 ? task->name : 0;
+	return thread->name[0] == 0 ? 0 : thread->name;
 }
 
 osThreadId_t osThreadGetId(void)
@@ -624,7 +637,7 @@ osStatus_t osThreadDetach(osThreadId_t thread_id)
 		return osErrorResource;
 
 	/* Ensure the reaper is running */
-	osCallOnce(&reaper_thread_init, osThreadReaperInit);
+	osCallOnce(&reaper_thread_init, osThreadReaperInit, 0);
 
 	/* Update */
 	thread->attr_bits &= ~osThreadJoinable;
@@ -655,7 +668,7 @@ void osThreadExit(void)
 
 	/* Initialize the thread reaper if needed  */
 	if ((thread->attr_bits & osThreadJoinable) == 0)
-		osCallOnce(&reaper_thread_init, osThreadReaperInit);
+		osCallOnce(&reaper_thread_init, osThreadReaperInit, 0);
 
 	/* Tell the scheduler to evict the task, cleaning happens on the reaper thread through the scheduler task exit handler callback for via osThreadJoin */
 	scheduler_terminate(thread->stack);
@@ -745,7 +758,7 @@ osStatus_t osThreadTerminate(osThreadId_t thread_id)
 
 	/* Initialize the thread reaper if needed */
 	if ((thread->attr_bits & osThreadJoinable) == 0)
-		osCallOnce(&reaper_thread_init, osThreadReaperInit);
+		osCallOnce(&reaper_thread_init, osThreadReaperInit, 0);
 
 	/* Start the thread termination */
 	int status = scheduler_terminate(thread->stack);

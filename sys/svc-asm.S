@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2021 Red Rocket Computing, LLC
+ * Copyright (C) 2024 Stephen Street
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * fault-m7-asm.S
+ * svc-asm.S
  *
  * Created on: Mar 27, 2021
  *     Author: Stephen Street (stephen@redrocketcomputing.com)
@@ -13,7 +13,7 @@
 
 #include <asm.h>
 
-	.section .after_vector, "a", %progbits
+	.section .data.__svc_vector
 	.align 2
 	.globl __svc_vector
 __svc_vector:
@@ -51,13 +51,8 @@ __svc_vector:
 	.word SVC_Handler_31
 	.size	__svc_vector, . - __svc_vector
 
-declare_weak_function default_service_handler, .isr
-	.fnstart
-/*	.cantunwind */
-
+declare_weak_function default_service_handler, .text
 	bx lr
-
-	.fnend
 	.pool
 	.size default_service_handler, . - default_service_handler
 
@@ -99,7 +94,7 @@ def_service_handler SVC_Handler_29
 def_service_handler SVC_Handler_30
 def_service_handler SVC_Handler_31
 
-declare_function SVC_Handler, .isr
+declare_function SVC_Handler, .text
 	.fnstart
 
 	/* Load the active stack into r1 */
@@ -129,4 +124,3 @@ declare_function SVC_Handler, .isr
 	.fnend
 	.pool
 	.size SVC_Handler, . - SVC_Handler
-

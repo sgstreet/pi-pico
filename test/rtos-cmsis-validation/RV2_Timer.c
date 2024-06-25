@@ -225,7 +225,7 @@ void TC_osTimerGetName_1 (void) {
   TimerId   = tid;
   TimerName = name;
   SetPendingIRQ(IRQ_A);
-//  ASSERT_TRUE (strcmp(TimerName, name) == 0U);
+  /* ASSERT_TRUE (strcmp(TimerName, name) == 0U); This wrong, you should not pass a 0 to strcmp */
   ASSERT_TRUE (TimerName == 0U);
 
   /* Delete timer object */
@@ -289,8 +289,7 @@ void TC_osTimerStart_1 (void) {
   ASSERT_TRUE (osTimerStart (id, 2U) == osOK);
 
   /* Wait until timer expires */
-//  osDelay(10U);
-  osDelay(11U);
+  osDelay(10U);
 
   /* Check if the timer callback function was called multiple times */
   ASSERT_TRUE (Tim_Var_Per == 5U);

@@ -19,17 +19,17 @@
 #ifndef RV2_CONFIG_H__
 #define RV2_CONFIG_H__
 
-#include <rtos/rtos.h>
-
-#define THREAD_STACK_MEM_SIZE 512
+#include <rtos/rtos-toolkit/cmsis-rtos2.h>
 
 //-------- <<< Use Configuration Wizard in Context Menu >>> --------------------
+
+#define THREAD_STACK_MEM_SIZE 512
 
 // <h> CMSIS-RTOS2 Test Suite Configuration
 //   <o>Test Runner Thread Stack size <128-16384>
 //   <i> Defines stack size for test runner thread.
 //   <i> Default: 1024
-#define MAIN_THREAD_STACK                 4096
+#define MAIN_THREAD_STACK                 1024
 
 // <o> Tick Timer Interval [us] <1-1000000>
 // <i> Defines kernel tick timer interval value.
@@ -65,37 +65,37 @@
 //   <o> Thread Object Size
 //   <i> Define the size of the thread object control block.
 //   <i> Default: 200
-#define THREAD_OBJECT_SIZE                sizeof(struct rtos_thread)
+#define THREAD_OBJECT_SIZE                (sizeof(struct rtos_thread))
 
 //   <o> Timer Object Size
 //   <i> Define the size of the timer object control block.
 //   <i> Default: 200
-#define TIMER_OBJECT_SIZE                 sizeof(struct rtos_timer)
+#define TIMER_OBJECT_SIZE                 (sizeof(struct rtos_timer))
 
 //   <o> Event Flags Object Size
 //   <i> Define the size of the event flags object control block.
 //   <i> Default: 200
-#define EVENT_FLAGS_OBJECT_SIZE           sizeof(struct rtos_eventflags)
+#define EVENT_FLAGS_OBJECT_SIZE           (sizeof(struct rtos_eventflags))
 
 //   <o> Mutex Object Size
 //   <i> Define the size of the mutex object control block.
 //   <i> Default: 200
-#define MUTEX_OBJECT_SIZE                 sizeof(struct rtos_mutex)
+#define MUTEX_OBJECT_SIZE                 (sizeof(struct rtos_mutex))
 
 //   <o> Semaphore Object Size
 //   <i> Define the size of the semaphore object control block.
 //   <i> Default: 200
-#define SEMAPHORE_OBJECT_SIZE             sizeof(struct rtos_semaphore)
+#define SEMAPHORE_OBJECT_SIZE             (sizeof(struct rtos_semaphore))
 
 //   <o> Memory Pool Object Size
 //   <i> Define the size of the memory pool object control block.
 //   <i> Default: 200
-#define MEMORY_POOL_OBJECT_SIZE           sizeof(struct rtos_memory_pool)
+#define MEMORY_POOL_OBJECT_SIZE           (sizeof(struct rtos_memory_pool))
 
 //   <o> Message Queue Object Size
 //   <i> Define the size of the message queue object control block.
 //   <i> Default: 200
-#define MESSAGE_QUEUE_OBJECT_SIZE         sizeof(struct rtos_message_queue)
+#define MESSAGE_QUEUE_OBJECT_SIZE         (sizeof(struct rtos_message_queue))
 //   </e>
 // </h>
 
@@ -196,7 +196,7 @@
 #define TC_OSTHREADYIELD_1_EN             1
 #define TC_OSTHREADSUSPEND_1_EN           1
 #define TC_OSTHREADRESUME_1_EN            1
-#define TC_OSTHREADRESUME_2_EN            0
+#define TC_OSTHREADRESUME_2_EN            1
 #define TC_OSTHREADDETACH_1_EN            1
 #define TC_OSTHREADDETACH_2_EN            1
 #define TC_OSTHREADJOIN_1_EN              1
@@ -306,7 +306,7 @@
 #define TC_EVENTFLAGSINTERTHREADS_EN      1
 #define TC_EVENTFLAGSCHECKTIMEOUT_EN      1
 #define TC_EVENTFLAGSWAITTIMEOUT_EN       1
-#define TC_EVENTFLAGSDELETEWAITING_EN     0
+#define TC_EVENTFLAGSDELETEWAITING_EN     0 // This is crazy requirement
 //   </e>
 
 //   <e0>Mutex Management

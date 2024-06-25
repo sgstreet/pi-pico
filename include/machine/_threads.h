@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * _threads.h
+ *
+ *  Created on: Mar 14, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #ifndef __THREADS_H_
 #define __THREADS_H_
 
@@ -7,23 +20,10 @@
 
 #include <linked-list.h>
 
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos-toolkit/scheduler.h>
 
-/*
-To make an efficient implementation, the std::once_flag could have three states:
-
-    execution finished: if you find this state, you're already done.
-    execution in progress: if you find this: wait until it changes to finished (or changes to failed-with-exception, which which case try to claim it)
-    execution not started: if you find this, attempt to CAS it to in-progress and call the function. If the CAS failed, some other thread succeeded, so goto the wait-for-finished state.
-
-Checking the flag with an acquire-load is extremely cheap on most architectures (especially x86 where all loads are acquire-loads). 
-Once it's set to "finished", it's not modified for the rest of the program, so it can stay cached in L1 on all cores (unless you put 
-it in the same cache line as something that is frequently modified, creating false sharing).
-*/
-
-#define __THRD_STACK_SIZE 2048
-#define __THRD_SIZE (__THRD_STACK_SIZE)
-#define __THRD_PRIORITY 23
+#define __THRD_STACK_SIZE 1024
+#define __THRD_PRIORITY (SCHEDULER_NUM_TASK_PRIORITIES / 2)
 #define __THRD_KEYS_MAX 8
 #define __THRD_TSS_SIZE (sizeof(void *) * __THRD_KEYS_MAX)
 #define __THRD_MARKER 0x137cc731UL
@@ -66,29 +66,26 @@ struct thrd
 	int (*func)(void *);
 	void *context;
 	int ret;
-	struct task *task;
 	bool detached;
 	bool terminated;
 	thrd_t joiner;
 	struct cnd joiners;
 	struct linked_list thrd_node;
+	void *tss[__THRD_KEYS_MAX];
 	unsigned long marker;
 	char stack[] __attribute__((aligned(8)));
 };
 
-struct thrd_attr
+typedef struct thrd_attr
 {
-	char name[TASK_NAME_LEN];
 	unsigned long flags;
 	unsigned long priority;
+	unsigned long affinity;
 	size_t stack_size;
-};
+} thrd_attr_t;
 
-int _thrd_ini(void);
-void _thrd_fini(void);
-
-void _thdr_attr_init(struct thrd_attr *attr, const char *name, unsigned long flags, unsigned long priority, size_t stack_size);
-int	_thrd_create(thrd_t *thrd, int (*func)(void *), void *arg, struct thrd_attr *attr);
+void _thdr_attr_init(thrd_attr_t *attr, unsigned long flags, unsigned long priority, size_t stack_size, unsigned long affinity);
+int	_thrd_create(thrd_t *thrd, int (*func)(void *), void *arg, thrd_attr_t *attr);
 int _thrd_sleep(unsigned long msec);
 
 #endif

@@ -107,12 +107,12 @@ int main(int argc, char **argv)
 		syslog_info("terminating %s\n", osThreadGetName(chasers[i]));
 		uint32_t flags = osThreadFlagsSet(chasers[i], 0x00000001);
 		if (flags & osFlagsError)
-			syslog_fatal("failed ot set thread termination flag: %d\n", (osStatus_t)flags);
+			syslog_fatal("failed to set thread termination flag: %d\n", (osStatus_t)flags);
 
 		/* Make sure the thread is awake */
 		flags = osEventFlagsSet(events, 1UL << i);
 		if (flags & osFlagsError)
-			syslog_fatal("failed ot set thread termination flag: %d\n", (osStatus_t)flags);
+			syslog_fatal("failed to set thread termination flag: %d\n", (osStatus_t)flags);
 
 		/* Wait for the thread to exit */
 		osStatus_t os_status = osThreadJoin(chasers[i]);

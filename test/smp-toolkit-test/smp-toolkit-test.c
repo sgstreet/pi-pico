@@ -84,7 +84,6 @@ int main(int argc, char **argv)
 	scheduler_futex_init(&futex, &events, 0);
 
 	struct task_descriptor swi_counter_task_desc = { .entry_point = swi_counter_task, .context = &futex, .priority = SCHEDULER_MIN_TASK_PRIORITY / 4 };
-	strncpy(swi_counter_task_desc.name, "swi-counter", TASK_NAME_LEN);
 	swi_counter_id = scheduler_create(sbrk(1024), 1024, &swi_counter_task_desc);
 	if (!swi_counter_id)
 		syslog_fatal("failed to start swi_counter_task\n");
@@ -92,7 +91,6 @@ int main(int argc, char **argv)
 	syslog_info("launching %u hogs\n", NUM_HOGS);
 	for (int i = 0; i < NUM_HOGS; ++i) {
 		struct task_descriptor hog_task_desc = { .entry_point = hog_task, .context = &hogs[i], .priority = SCHEDULER_MIN_TASK_PRIORITY / 2 };
-		strncpy(hog_task_desc.name, "hog", TASK_NAME_LEN);
 		hogs[i].id = scheduler_create(sbrk(1024), 1024, &hog_task_desc);
 		if (!hogs[i].id)
 			syslog_fatal("failed to start hog %d\n", i);
@@ -135,7 +133,6 @@ int _main(int argc, char **argv)
 	/* Setup the main task */
 	struct arguments args = { .argc = argc, .argv = argv, .ret = 0 };
 	struct task_descriptor main_task_descriptor;
-	strcpy(main_task_descriptor.name, "main-task");
 	main_task_descriptor.entry_point = main_task;
 	main_task_descriptor.exit_handler = 0;
 	main_task_descriptor.context = &args;

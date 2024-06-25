@@ -1,8 +1,21 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2-pool.c
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #include <stdlib.h>
 #include <string.h>
-#include <container-of.h>
+#include <compiler.h>
 
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos.h>
 
 extern void *_rtos2_alloc(size_t size);
 extern void _rtos2_release(void *ptr);

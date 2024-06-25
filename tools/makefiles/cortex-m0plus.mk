@@ -1,7 +1,5 @@
-CROSS_COMPILE ?= ${PROJECT_ROOT}/local/bin/arm-none-eabi-
+CROSS_COMPILE ?= arm-none-eabi-
 CROSS_FLAGS ?= -mcpu=cortex-m0plus -mtune=cortex-m0plus -march=armv6s-m -mfloat-abi=soft -mthumb -mno-unaligned-access --specs=picolibc.specs
-
-#-fdebug-prefix-map=old_path=new_path
 
 CC := ${CROSS_COMPILE}gcc
 CXX := ${CROSS_COMPILE}g++

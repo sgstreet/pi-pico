@@ -19,7 +19,7 @@
 #ifndef RV2_CONFIG_DEVICE_H__
 #define RV2_CONFIG_DEVICE_H__
 
-#include <cmsis/cmsis.h>
+#include <cmsis.h>
 
 /* Primary interrupt handler */
 #ifndef TST_IRQ_HANDLER_A

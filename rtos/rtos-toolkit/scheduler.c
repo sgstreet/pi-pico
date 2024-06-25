@@ -1,5 +1,9 @@
 /*
- * Copyright (C) 2022 Stephen Street
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  * Created on: Feb 13, 2017
  *     Author: Stephen Street (stephen@redrocketcomputing.com)
@@ -13,16 +17,13 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
+
 #include <sys/tls.h>
-
-#include <cmsis/cmsis.h>
-
-#include <sys/systick.h>
 #include <sys/svc.h>
 
+#include <cmsis/cmsis.h>
 #include <rtos/rtos-toolkit/scheduler.h>
 
-#include "debugger.h"
 
 #define SCHEDULER_START_SVC 0
 #define SCHEDULER_CREATE_SVC 1
@@ -69,10 +70,13 @@ extern __weak void scheduler_switch_hook(struct task *task);
 extern __weak void scheduler_terminated_hook(struct task *task);
 extern __weak void scheduler_tick_hook(unsigned long ticks);
 extern __weak void scheduler_tls_init_hook(void *tls);
-extern __weak void scheduler_run_hook(bool start);
+extern __weak void scheduler_startup_hook(void);
+extern __weak void scheduler_shutdown_hook(void);
 
 extern __weak void scheduler_spin_lock(void);
 extern __weak void scheduler_spin_unlock(void);
+
+extern __weak void enable_debugger_support(void);
 
 uint32_t scheduler_svc_vector[] =
 {
@@ -94,6 +98,8 @@ core_local struct task *current_task = 0;
 core_local int slice_expires = INT32_MAX;
 core_local unsigned long ticks = 0;
 core_local atomic_ulong deferred_wake[SCHEDULER_MAX_DEFERED_WAKE];
+core_local atomic_ulong taken_wake_counter = 0;
+core_local atomic_ulong given_wake_counter = 0;
 
 static inline void sched_list_init(struct sched_list *list)
 {
@@ -239,14 +245,13 @@ static inline struct task *sched_set_current(struct task *task)
 static inline void sched_queue_init(struct sched_queue *queue)
 {
 	assert(queue != 0);
-	queue->size = 0;
 	sched_list_init(&queue->tasks);
 }
 
 static inline bool sched_queue_empty(struct sched_queue *queue)
 {
 	assert(queue != 0);
-	return queue->size == 0;
+	return sched_list_empty(&queue->tasks);
 }
 
 static inline void sched_queue_remove(struct task *task)
@@ -254,13 +259,10 @@ static inline void sched_queue_remove(struct task *task)
 	assert(task != 0);
 
 	sched_list_remove(&task->queue_node);
-	if (task->current_queue) {
-		--task->current_queue->size;
-		task->current_queue = 0;
-	}
+	task->current_queue = 0;
 }
 
-static inline void sched_queue_push(struct sched_queue *queue, struct task *task)
+static void sched_queue_push(struct sched_queue *queue, struct task *task)
 {
 	assert(queue != 0 && task != 0 && task->current_queue == 0);
 
@@ -268,8 +270,8 @@ static inline void sched_queue_push(struct sched_queue *queue, struct task *task
 	struct task *entry = 0;
 	struct sched_list *node;
 	sched_list_for_each(node, &queue->tasks)
-		if (container_of(node, struct task, queue_node)->current_priority > task->current_priority) {
-			entry = container_of(node, struct task, queue_node);;
+		if (sched_container_of(node, struct task, queue_node)->current_priority > task->current_priority) {
+			entry = sched_container_of(node, struct task, queue_node);;
 			break;
 		}
 
@@ -280,24 +282,31 @@ static inline void sched_queue_push(struct sched_queue *queue, struct task *task
 		sched_list_push(&queue->tasks, &task->queue_node);
 
 	task->current_queue = queue;
-	++queue->size;
 }
 
-static inline struct task *sched_queue_pop(struct sched_queue *queue)
+static struct task *sched_queue_pop(struct sched_queue *queue, unsigned long core)
 {
-	struct task* task;
+	struct task *task;
 
 	assert(queue != 0);
 
-	task = sched_list_pop_entry(&queue->tasks, struct task, queue_node);
-	if (task) {
-		--queue->size;
-		task->current_queue = 0;
+	/* Just take the first task */
+	if (core == UINT32_MAX) {
+		task = sched_list_pop_entry(&queue->tasks, struct task, queue_node);
+		if (task)
+			task->current_queue = 0;
+		return task;
 	}
 
-	assert(task == 0 || !sched_list_is_linked(&task->queue_node));
+	/* Look for the highest priority task which can run on this core */
+	sched_list_for_each_entry(task, &queue->tasks, queue_node) {
+		if ((task->flags & SCHEDULER_CORE_AFFINITY) == 0 || task->affinity == core) {
+			sched_queue_remove(task);
+			return task;
+		}
+	}
 
-	return task;
+	return 0;
 }
 
 static inline unsigned long sched_queue_highest_priority(struct sched_queue *queue)
@@ -306,13 +315,13 @@ static inline unsigned long sched_queue_highest_priority(struct sched_queue *que
 
 	assert(queue != 0);
 
-	if (queue->size != 0)
+	if (!sched_queue_empty(queue))
 		highest = sched_list_first_entry(&queue->tasks, struct task, queue_node)->current_priority;
 
 	return highest;
 }
 
-static inline void sched_queue_reprioritize(struct task *task, unsigned long new_priority)
+static void sched_queue_reprioritize(struct task *task, unsigned long new_priority)
 {
 	assert(task != 0 && new_priority >= 0 && new_priority < SCHEDULER_NUM_TASK_PRIORITIES);
 
@@ -326,7 +335,7 @@ static inline void sched_queue_reprioritize(struct task *task, unsigned long new
 
 static inline __always_inline bool is_interrupt_context(void)
 {
-	return __get_IPSR() != 0;// || __get_PRIMASK() != 0;
+	return __get_IPSR() != 0;
 }
 
 static inline __always_inline bool is_svc_context(void)
@@ -425,7 +434,7 @@ __fast_section __optimize void scheduler_tick(void)
 		scheduler_request_switch(scheduler_current_core());
 
 	/* And time slice enabled and expired */
-	if (cls_datum(slice_expires) != UINT32_MAX && --cls_datum(slice_expires) == 0)
+	if (cls_datum(slice_expires) != INT32_MAX && --cls_datum(slice_expires) == 0)
 		scheduler_request_switch(scheduler_current_core());
 
 	/* Pass to the hook */
@@ -446,12 +455,20 @@ void scheduler_create_svc(struct exception_frame *frame)
 	sched_list_push(&scheduler->tasks, &task->scheduler_node);
 
 	/* Add the new task to the ready queue */
-	task->state = TASK_READY;
-	sched_queue_push(&scheduler->ready_queue, task);
+	if ((task->flags & SCHEDULER_CREATE_SUSPENDED) == 0) {
 
-	/* Since we pushed the task onto the ready queue, do a context switch and return the new task */
-	if (scheduler_is_running() && task->current_priority < sched_get_current()->current_priority)
-		scheduler_request_switch(scheduler_current_core());
+		/* Ready the task */
+		task->state = TASK_READY;
+		sched_queue_push(&scheduler->ready_queue, task);
+
+		/* Since we pushed the task onto the ready queue, do a context switch and return the new task */
+		if (scheduler_is_running() && task->current_priority < sched_get_current()->current_priority)
+			scheduler_request_switch(scheduler_current_core());
+
+	} else
+		/* Mark as suspended */
+		task->state = TASK_SUSPENDED;
+
 
 	scheduler_spin_unlock();
 }
@@ -498,10 +515,9 @@ void scheduler_suspend_svc(struct scheduler_frame *frame)
 		sched_queue_remove(task);
 		scheduler_timer_remove(task);
 
-		/* Add to the suspend queue */
+		/* Mark as suspended */
 		task->state = TASK_SUSPENDED;
 		task->core = UINT32_MAX;
-		sched_queue_push(&scheduler->suspended_queue, task);
 
 		/* Since a scheduler frame was create we always need a context switch */
 		current->state = TASK_READY;
@@ -512,7 +528,6 @@ void scheduler_suspend_svc(struct scheduler_frame *frame)
 		/* Suspending ourselves, add to the suspend queue */
 		current->state = TASK_SUSPENDED;
 		current->core = UINT32_MAX;
-		sched_queue_push(&scheduler->suspended_queue, current);
 	}
 
 	/* Add any need timer */
@@ -556,8 +571,9 @@ void scheduler_resume_svc(struct exception_frame *frame)
 		/* Remove any blocking queue */
 		sched_queue_remove(task);
 
-		/* Clear the return so we can indicate no timeout */
-		task->psp->r0 = 0;
+		/* Waiting tasks return -ECANCELED when the wait is broken via resume */
+		if (task->state == TASK_BLOCKED)
+			task->psp->r0 = -ECANCELED;
 
 		/* Push on the ready queue */
 		task->state = TASK_READY;
@@ -581,7 +597,7 @@ void scheduler_wait_svc(struct scheduler_frame *frame)
 
 	scheduler_spin_lock();
 
-	assert(futex != 0 && futex->marker == SCHEDULER_FUTEX_MARKER);
+	assert(futex != 0 && futex->marker == SCHEDULER_FUTEX_MARKER && current != 0);
 
 	/* At this point assume no timeout */
 	frame->r0 = 0;
@@ -661,7 +677,7 @@ static int scheduler_wake_futex(struct futex *futex, bool all)
 
 	/* Wake up the waiters */
 	struct task *task;
-	while ((task = sched_queue_pop(&futex->waiters)) != 0) {
+	while ((task = sched_queue_pop(&futex->waiters,UINT32_MAX)) != 0) {
 
 		assert(task->marker == SCHEDULER_TASK_MARKER);
 
@@ -807,10 +823,22 @@ __weak void scheduler_terminated_hook(struct task *task)
 		task->exit_handler(task);
 }
 
+struct task *debug_tasks[25];
+
 __weak void scheduler_idle_hook(void)
 {
 	scheduler_spin_unlock();
+
+	/* Wait for some indication of work */
 	__WFI();
+
+	/*
+	 * This might have been a some kind of scheduler request, since we are already
+	 * inside the PendSV handler we need to ensure it is cleared to prevent double
+	 * context switches.
+	 */
+	SCB->ICSR = SCB_ICSR_PENDSVCLR_Msk;
+
 	scheduler_spin_lock();
 
 	assert(cls_datum(current_task == 0));
@@ -874,11 +902,12 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 	while (true) {
 
 		/* Check for deferred wake ups */
-		atomic_ulong *wake = cls_datum(deferred_wake);
-		for (int i = 0; i < SCHEDULER_MAX_DEFERED_WAKE; ++i) {
-			unsigned long wakeup = atomic_exchange(&wake[i], 0);
-			if (wakeup != 0)
+		for (int i = 0; (cls_datum(taken_wake_counter) ^ cls_datum(given_wake_counter)) != 0 && i < SCHEDULER_MAX_DEFERED_WAKE; ++i) {
+			unsigned long wakeup = atomic_exchange(&cls_datum(deferred_wake)[i], 0);
+			if (wakeup != 0) {
 				scheduler_wake_futex((struct futex *)(wakeup & ~0x00000001), wakeup & 0x00000001);
+				++cls_datum(taken_wake_counter);
+			}
 		}
 
 		/* Ready any expired timers */
@@ -898,7 +927,7 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 		}
 
 		/* Try to get highest priority ready task */
-		task = sched_queue_pop(&scheduler->ready_queue);
+		task = sched_queue_pop(&scheduler->ready_queue, scheduler_current_core());
 		if (task) {
 
 			assert(task->marker == SCHEDULER_TASK_MARKER);
@@ -916,11 +945,14 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 			scheduler_terminated_hook(task);
 		}
 
-		/* If no potential tasks, terminate the scheduler */
-		if (!scheduler_is_viable()) {
+		/* If no potential tasks, try to terminate the scheduler */
+		if (!scheduler_is_viable() && cls_datum(scheduler_initial_frame) != 0) {
 
 			/* The syscall will return ok */
 			cls_datum(scheduler_initial_frame)->r0 = 0;
+
+			/* Let the wolves out to play */
+			scheduler_spin_unlock();
 
 			/* This will return to the invoker of scheduler_start */
 			return cls_datum(scheduler_initial_frame);
@@ -943,14 +975,28 @@ struct scheduler_frame *scheduler_switch(struct scheduler_frame *frame)
 	if (sched_set_current(task) != 0)
 		abort();
 
-	/* If there are still more ready tasks, kick other cores to ensure high priority tasks run */
+	/* If there are still more ready tasks, kick other cores if need to ensure high priority tasks run */
 	if (!sched_queue_empty(&scheduler->ready_queue)) {
+
+		/* Check other cores */
 		for (unsigned long core = 0; core < scheduler_num_cores(); ++core) {
+
+			/* Other cores */
 			if (core != scheduler_current_core()) {
-				struct task * core_task = cls_datum_core(core, current_task);
-				if (core_task != 0 && sched_queue_highest_priority(&scheduler->ready_queue) < core_task->current_priority) {
-					scheduler_request_switch(core);
-					break;
+
+				/* Only kick the other core if there is a higher priority task to run */
+				struct task *core_task = cls_datum_core(core, current_task);
+				if (core_task) {
+
+					/* Well check the priority taking into account core affinity */
+					struct task *cursor;
+					sched_list_for_each_entry(cursor, &scheduler->ready_queue.tasks, queue_node) {
+						if ((cursor->flags & SCHEDULER_CORE_AFFINITY) == 0 || cursor->affinity == core) {
+							if (cursor->current_priority < core_task->current_priority)
+								scheduler_request_switch(core);
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -982,29 +1028,30 @@ struct task *scheduler_create(void *stack, size_t stack_size, const struct task_
 	/* Initialize the task and add to the scheduler task list */
 	struct task *task = stack;
 	task->marker = SCHEDULER_TASK_MARKER;
-	task->tls = (void *)task + ALIGNMENT_ROUND_TYPE(struct task, 8);
 	sched_list_init(&task->timer_node);
 	sched_list_init(&task->scheduler_node);
 	sched_list_init(&task->queue_node);
 	sched_list_init(&task->owned_futexes);
 	task->current_queue = 0;
 	task->timer_expires = UINT32_MAX;
-	strncpy(task->name, descriptor->name, TASK_NAME_LEN);
 	task->base_priority = descriptor->priority;
 	task->current_priority = descriptor->priority;
 	task->exit_handler = descriptor->exit_handler;
 	task->flags = descriptor->flags;
 	task->context = descriptor->context;
 	task->core = UINT32_MAX;
+	task->affinity = descriptor->flags & SCHEDULER_CORE_AFFINITY ? descriptor->affinity : UINT32_MAX;
 
 	/* Build the scheduler frame to use the PSP and run in privileged mode */
-	task->psp = (struct scheduler_frame *)((((uintptr_t)stack) + stack_size - sizeof(struct scheduler_frame)) & ~7);
-	task->psp->exec_return = 0xfffffffd;
-	task->psp->control = CONTROL_SPSEL_Msk;
-	task->psp->pc = ((uint32_t)descriptor->entry_point & ~0x01UL);
-	task->psp->lr = 0;
-	task->psp->psr = xPSR_T_Msk;
-	task->psp->r0 = (uint32_t)task->context;
+	if ((descriptor->flags & SCHEDULER_NO_FRAME_INIT) == 0) {
+		task->psp = (struct scheduler_frame *)((((uintptr_t)stack) + stack_size - sizeof(struct scheduler_frame)) & ~7);
+		task->psp->exec_return = 0xfffffffd;
+		task->psp->control = CONTROL_SPSEL_Msk;
+		task->psp->pc = ((uint32_t)descriptor->entry_point & ~0x01UL);
+		task->psp->lr = 0;
+		task->psp->psr = xPSR_T_Msk;
+		task->psp->r0 = (uint32_t)task->context;
+	}
 
 #ifdef BUILD_TYPE_DEBUG
 	task->psp->r1 = 0xdead0001;
@@ -1021,23 +1068,53 @@ struct task *scheduler_create(void *stack, size_t stack_size, const struct task_
 	task->psp->r12 = 0xdead000c;
 #endif
 
-	/* Initialize the TLS block */
-	scheduler_tls_init_hook(task->tls);
+	/* Initialize the TLS pointer is not suppressed */
+	if ((descriptor->flags & SCHEDULER_NO_TLS_INIT) == 0) {
 
-	/* And now the stack marker */
-	task->stack_marker = task->tls + scheduler->tls_size;
+		/* Set the TLS pointer */
+		task->tls = (void *)task + ALIGNMENT_ROUND_TYPE(struct task, 8);
+
+		/* Initialize the TLS block */
+		scheduler_tls_init_hook(task->tls);
+
+		/* And now the stack marker */
+		task->stack_marker = task->tls + scheduler->tls_size;
+	}
 
 	/* Double check the stack marker */
 	assert(scheduler_check_stack(task));
 
-	/* Ask scheduler to create the new task */
+	/* Handle primordial task specially, very hacky to support threads and pthreads initialization */
+	if (descriptor->flags & SCHEDULER_PRIMORDIAL_TASK) {
+
+		/* Add the task the scheduler list */
+		sched_list_push(&scheduler->tasks, &task->scheduler_node);
+
+		/* Force core affinity */
+		task->flags |= SCHEDULER_CORE_AFFINITY;
+		task->affinity = scheduler_current_core();
+
+		/* Mark as running */
+		task->state = TASK_RUNNING;
+		task->core = task->affinity;
+		cls_datum(current_task) = task;
+
+		/* If the tls pointer was initialized, the forward to the switch hook */
+		if (task->tls != 0)
+			scheduler_switch_hook(task);
+
+		/* All done with the primorial task */
+		return task;
+	}
+
+	/* Ask scheduler to add the new task */
 	return (struct task *)svc_call1(SCHEDULER_CREATE_SVC, (uint32_t)task);
 }
 
 int scheduler_init(struct scheduler *new_scheduler, size_t tls_size)
 {
 	/* Make sure some memory was provided */
-	if (!new_scheduler || scheduler != 0) {
+	if (!new_scheduler) {
 		errno = EINVAL;
 		return -EINVAL;
 	}
@@ -1060,9 +1137,17 @@ int scheduler_init(struct scheduler *new_scheduler, size_t tls_size)
 	new_scheduler->critical = UINT32_MAX;
 	new_scheduler->critical_counter = 0;
 	sched_queue_init(&new_scheduler->ready_queue);
-	sched_queue_init(&new_scheduler->suspended_queue);
 	sched_list_init(&new_scheduler->timers);
 	sched_list_init(&new_scheduler->tasks);
+
+	/* Initialize the all core local data */
+	for (unsigned long core = 0; core < scheduler_num_cores(); ++core) {
+		cls_datum_core(core, scheduler_initial_frame) = 0;
+		cls_datum_core(core, current_task) = 0;
+		cls_datum_core(core, slice_expires) = INT32_MAX;
+		cls_datum_core(core, ticks) = 0;
+		memset(cls_datum_core_ptr(core, deferred_wake), 0, sizeof(deferred_wake));
+	}
 
 	/* Save a scheduler singleton */
 	scheduler = new_scheduler;
@@ -1079,25 +1164,20 @@ int scheduler_run(void)
 		return -EINVAL;
 	}
 
-	/* Update the active cores */
-	atomic_fetch_add(&scheduler->active_cores, 1);
-
 	/* Forward start hook */
-	scheduler_run_hook(true);
+	scheduler_startup_hook();
 
 	/* We only return from this when the scheduler is shutdown */
+	++scheduler->running;
 	int result = svc_call0(SCHEDULER_START_SVC);
 	if (result < 0) {
 		errno = -result;
 		return result;
 	}
+	--scheduler->running;
 
 	/* Forward exit hook */
-	scheduler_run_hook(false);
-
-	/* Clear the scheduler singleton, if this is the last core out, to restart reinitialize */
-	if (atomic_fetch_sub(&scheduler->active_cores, 1) == 1)
-		scheduler = 0;
+	scheduler_shutdown_hook();
 
 	/* All done */
 	return 0;
@@ -1106,7 +1186,7 @@ int scheduler_run(void)
 bool scheduler_is_running(void)
 {
 	/* We are running if the initial frame has be set by the start service call */
-	return scheduler != 0 && cls_datum(scheduler_initial_frame) != 0;
+	return scheduler != 0 && scheduler->running > 0;
 }
 
 unsigned long scheduler_enter_critical(void)
@@ -1116,23 +1196,27 @@ unsigned long scheduler_enter_critical(void)
 	/* When we leave this function, 1) Interrupts are disabled, 2) we are hold the scheduler spin lock */
 	uint32_t state = disable_interrupts();
 
+	/* Do already owne the critical section? */
+	if (scheduler->critical == scheduler_current_core()) {
+		++scheduler->critical_counter;
+		return state;
+	}
+
 	/* Loop trying to get the critical section */
 	while (true) {
 
 		/* In a multicore we need the spinlock */
 		scheduler_spin_lock();
 
-		/* Try to grap the critical sections supporting recursive entrances */
+		/* Try to grap the critical sections supporting recursive entrances, keep the spinlock if successful */
 		if (scheduler->critical == UINT32_MAX || scheduler->critical == scheduler_current_core()) {
 			scheduler->critical = scheduler_current_core();
 			++scheduler->critical_counter;
-			__DSB();
 			return state;
 		}
 
 		/* Release the spin lock and wait until someone unlock or at least calls SEV */
 		scheduler_spin_unlock();
-		__WFE();
 	}
 }
 
@@ -1141,21 +1225,15 @@ void scheduler_exit_critical(unsigned long state)
 	assert(scheduler_is_running() && scheduler->critical == scheduler_current_core());
 
 	/* Handle nested critical sections */
-	if (--scheduler->critical_counter >= 1) {
-		__DSB();
+	if (--scheduler->critical_counter >= 1)
 		return;
-	}
 
 	/* Release the critical section */
 	scheduler->critical = UINT32_MAX;
-	__DSB();
 
 	/* Now the spin lock and the interrupts */
 	scheduler_spin_unlock();
 	enable_interrupts(state);
-
-	/* Kick the other cores */
-	__SEV();
 }
 
 int scheduler_lock(void)
@@ -1211,12 +1289,8 @@ int scheduler_sleep(unsigned long ticks)
 		return 0;
 	}
 
-	/* Get the current task */
-	struct task *task = scheduler_task();
-	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
-
 	/* We are timed suspending ourselves */
-	int status = svc_call2(SCHEDULER_SUSPEND_SVC, (uint32_t)task, ticks);
+	int status = svc_call2(SCHEDULER_SUSPEND_SVC, (uint32_t)scheduler_task(), ticks);
 	if (status < 0 && status != -ETIMEDOUT) {
 		errno = -status;
 		return status;
@@ -1232,7 +1306,7 @@ int scheduler_suspend(struct task *task)
 	if (!task)
 		task = scheduler_task();
 
-	if (scheduler->active_cores > 1 && task != scheduler_task()) {
+	if (scheduler_num_cores() > 1 && task != scheduler_task()) {
 		errno = EINVAL;
 		return -errno;
 	}
@@ -1245,7 +1319,7 @@ int scheduler_suspend(struct task *task)
 	}
 
 	/* All good */
-	return status;
+	return 0;
 }
 
 int scheduler_resume(struct task *task)
@@ -1267,7 +1341,7 @@ int scheduler_terminate(struct task *task)
 	if (!task)
 		task = scheduler_task();
 
-	if (scheduler->active_cores > 1 && task != scheduler_task()) {
+	if (scheduler_num_cores() > 1 && task != scheduler_task()) {
 		errno = EINVAL;
 		return -errno;
 	}
@@ -1318,14 +1392,18 @@ int scheduler_futex_wake(struct futex *futex, bool all)
 		}
 
 		/* Find an empty slot */
-		atomic_ulong *wake = cls_datum(deferred_wake);
 		unsigned long expected = 0;
 		unsigned long wakeup = (unsigned long)futex | all;
 		for (int i = 0; i < SCHEDULER_MAX_DEFERED_WAKE; ++i) {
-			if (atomic_compare_exchange_strong(&wake[i], &expected, wakeup) || expected == wakeup) {
+			/* The second clause protects from multiple wakeups against the same futex */
+			if (atomic_compare_exchange_strong(&cls_datum(deferred_wake)[i], &expected, wakeup)) {
+				++cls_datum(given_wake_counter);
 				scheduler_request_switch(scheduler_current_core());
 				return 0;
-			}
+			} else if (expected == wakeup)
+				return 0;
+
+			/* Get ready to try the next slot */
 			expected = 0;
 		}
 
@@ -1419,15 +1497,4 @@ enum task_state scheduler_get_state(struct task *task)
 	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
 
 	return task->state;
-}
-
-const char *scheduler_get_name(struct task *task)
-{
-	/* Use the current task if needed */
-	if (!task)
-		task = scheduler_task();
-
-	assert(task != 0 && task->marker == SCHEDULER_TASK_MARKER);
-
-	return task->name;
 }

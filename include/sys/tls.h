@@ -14,6 +14,8 @@
 #ifndef _TLS_H_
 #define _TLS_H_
 
+#include <picotls.h>
+
 #ifndef thread_local
 #define	thread_local _Thread_local
 #endif

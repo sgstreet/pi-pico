@@ -1,32 +1,39 @@
+/*
+ * Copyright (C) 2024 Stephen Street
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * cmsis-rtos2-kernel.c
+ *
+ *  Created on: Mar 24, 2024
+ *      Author: Stephen Street (stephen@redrocketcomputing.com)
+ */
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <compiler.h>
 
-#include <init/init-sections.h>
-
-#include <rtos/rtos-toolkit/rtos-toolkit.h>
+#include <rtos/rtos.h>
 
 struct rtos_kernel *rtos2_kernel = 0;
 
 extern __weak void *_rtos2_alloc(size_t size);
 extern __weak void _rtos2_release(void *ptr);
+extern void *__tls_size;
 
 __weak void *_rtos2_alloc(size_t size)
 {
-	/* By default we use the monotonic allocator */
-	void *ptr = sbrk(size);
-	if (!ptr)
-		return 0;
-
-	/* Clear the allocation */
-
-	return memset(ptr, 0, size);
+	return calloc(1, size);
 }
 
 __weak void _rtos2_release(void *ptr)
 {
+	free(ptr);
 }
 
 static struct rtos_kernel kernel = { .state = osKernelInactive };
@@ -280,30 +287,39 @@ uint32_t osKernelGetSysTimerFreq(void)
 	return SystemCoreClock;
 }
 
-void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func)
+void osCallOnce(osOnceFlagId_t once_flag, osOnceFunc_t func, void *context)
 {
 	/* All ready done */
-	if (*once_flag == 2)
+	if (atomic_load(once_flag) == 2)
 		return;
+
+	/* Setup a futex to wait on */
+	struct futex futex;
+	scheduler_futex_init(&futex, (long *)once_flag, 0);
 
 	/* Try to claim the initializer */
 	int expected = 0;
 	if (!atomic_compare_exchange_strong(once_flag, &expected, 1)) {
 
-		/* Wait the the initializer to complete, we sleep to ensure lower priority threads run */
-		while (*once_flag != 2)
-			osDelay(10);
+		/* Wait on the futex */
+		expected = 2;
+		while (!atomic_compare_exchange_strong(once_flag, &expected, 2)) {
+			scheduler_futex_wait(&futex, expected, SCHEDULER_WAIT_FOREVER);
+			expected = 2;
+		}
 
 		/* Done */
 		return;
 	}
 
 	/* Run the function */
-	func();
+	func(once_flag, context);
 
 	/*  Mark as done */
-	*once_flag = 2;
-	__DSB();
+	atomic_store(once_flag, 2);
+
+	/* Wake any waiters */
+	scheduler_futex_wake(&futex, true);
 }
 
 osStatus_t osKernelResourceAdd(osResourceId_t resource_id, osResourceNode_t node)
@@ -413,7 +429,7 @@ static osStatus_t osKernelDumpResource(osResource_t resource, void *context)
 		case RTOS_THREAD_MARKER:
 		{
 			struct rtos_thread *thread = resource;
-			fprintf(stdout, "thread: %p name: %s, state: %d stack available: %lu\n", thread, scheduler_get_name(thread->stack), osThreadGetState(thread), osThreadGetStackSpace(thread));
+			fprintf(stdout, "thread: %p name: %s, state: %d stack available: %lu\n", thread, osThreadGetName(thread), osThreadGetState(thread), osThreadGetStackSpace(thread));
 			break;
 		}
 
@@ -485,73 +501,6 @@ osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResource_t
 	if (status >= 1)
 		return osOK;
 	return osErrorResource;
-}
-
-struct arguments
-{
-	int argc;
-	char **argv;
-	int ret;
-};
-
-extern int main(int argc, char **argv);
-extern __weak void main_task(void *context);
-extern void _init(void);
-extern void _fini(void);
-
-int _main(int argc, char **argv);
-
-__weak void main_task(void *context)
-{
-	assert(context != 0);
-
-	struct arguments *args = context;
-
-	/* Common initialization */
-	_init();
-
-	/* Execute the ini array */
-	run_init_array(__init_array_start, __init_array_end);
-
-	args->ret = main(args->argc, args->argv);
-
-	/* Execute the fini array */
-	run_fini_array(__fini_array_start, __fini_array_end);
-
-	/* Common clean up */
-	_fini();
-}
-
-int _main(int argc, char **argv)
-{
-	/* Initialize the kernel */
-	osStatus_t os_status = osKernelInitialize();
-	if (os_status != osOK)
-		return -errno;
-
-	/* Setup the main task */
-	struct arguments args = { .argc = argc, .argv = argv, .ret = 0 };
-	osThreadAttr_t main_thread_attr = { .cb_mem = 0 };
-	main_thread_attr.name = "main-task";
-	main_thread_attr.attr_bits = osThreadJoinable;
-	main_thread_attr.cb_mem = sbrk(SCHEDULER_MAIN_STACK_SIZE + sizeof(struct rtos_thread));
-	main_thread_attr.cb_size = sizeof(struct rtos_thread);
-	main_thread_attr.stack_mem = ((struct rtos_thread*)(main_thread_attr.cb_mem))->stack_area;
-	main_thread_attr.stack_size = SCHEDULER_MAIN_STACK_SIZE;
-	main_thread_attr.priority = osPriorityNormal;
-	osThreadId_t main_task_id = osThreadNew(main_task, &args, &main_thread_attr);
-	if (!main_task_id)
-		return -EINVAL;
-
-	/* Run the kernel */
-	int status = 0;
-	os_status = osKernelStart();
-	if (os_status == osOK)
-		status = args.ret;
-	else
-		status = -errno;
-
-	return status;
 }
 
 error_t errno_from_rtos(int rtos)

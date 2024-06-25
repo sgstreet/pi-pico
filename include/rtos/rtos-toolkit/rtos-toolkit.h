@@ -3,6 +3,6 @@
 
 #include <cmsis/rtos2/cmsis_os2.h>
 #include <rtos/rtos-toolkit/scheduler.h>
-#include <rtos/rtos-toolkit/rtos-toolkit-cmsis-os2.h>
+#include <rtos/rtos-toolkit/cmsis-rtos2.h>
 
 #endif

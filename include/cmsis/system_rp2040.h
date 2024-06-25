@@ -19,13 +19,12 @@ extern "C" {
 #define RP2040_CLOCK_RTC 9UL
 #define RP2040_NUM_CLOCKS (RP2040_CLOCK_RTC + 1)
 
-#define SystemCurrentCore (*system_current_core)
+#define SystemNumCores 2UL
+#define SystemCurrentCore (*(volatile uint32_t *const)(0xd0000000))
 
 extern uint32_t SystemCoreClock;
-extern const uint32_t SystemNumCores;
 
 extern uint32_t rp2040_clocks[RP2040_NUM_CLOCKS];
-extern volatile uint32_t *const system_current_core;
 
 extern void SystemInit(void);
 extern void SystemCoreClockUpdate(void);

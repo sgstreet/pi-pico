@@ -1,8 +1,8 @@
 
 # Add the runtime
 EXTRA_ELF_DEPS += ${BUILD_ROOT}/runtime/libruntime.a
-CROSS_FLAGS := -mcpu=cortex-m0plus -mtune=cortex-m0plus -march=armv6s-m -mfloat-abi=soft -mthumb -mno-unaligned-access --specs=${PROJECT_ROOT}/tools/picolibc-rp2040.specs
 LDFLAGS += -L${BUILD_ROOT}/runtime
+LDLIBS += -lruntime
 
 # Add wrappers to hardware divider support */
 LDFLAGS += -Wl,--wrap=__aeabi_idiv

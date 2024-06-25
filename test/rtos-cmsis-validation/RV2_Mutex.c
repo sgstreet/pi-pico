@@ -54,7 +54,7 @@ void Th_MutexHighPrioAcq (void *arg) {
   ASSERT_TRUE (osMutexAcquire (MutexId, osWaitForever) == osOK);
   (*cnt)++;
   /* This call should never return */
-//  osThreadFlagsWait (1, 0, osWaitForever);
+/*  osThreadFlagsWait (1, 0, osWaitForever); Some RTOS do not support deleting event flags with waiters */
   osThreadSuspend(osThreadGetId());
 }
 #endif
@@ -218,8 +218,8 @@ void Th_MutexAcqLow  (void __attribute__((unused)) *arg) {
   osThreadFlagsWait (1, 0, 100);
   ASSERT_TRUE (osMutexRelease (MutexId) == osOK);
   /* This call should never return */
-//  osThreadFlagsWait (1, 0, osWaitForever);
-  osThreadSuspend(osThreadGetId());
+  /*  osThreadFlagsWait (1, 0, osWaitForever); Some RTOS do not support deleting event flags with waiters */
+    osThreadSuspend(osThreadGetId());
 }
 #endif
 
@@ -230,7 +230,7 @@ void Th_MutexAcqLow  (void __attribute__((unused)) *arg) {
 void Th_MutexRelHigh (void __attribute__((unused)) *arg) {
   ASSERT_TRUE (osMutexRelease (MutexId) == osErrorResource);
   /* This call should never return */
-  //  osThreadFlagsWait (1, 0, osWaitForever);
+  /*  osThreadFlagsWait (1, 0, osWaitForever); Some RTOS do not support deleting event flags with waiters */
     osThreadSuspend(osThreadGetId());
 }
 #endif
@@ -429,6 +429,7 @@ void TC_osMutexGetName_1 (void) {
   MutexId   = id;
   MutexName = name;
   SetPendingIRQ(IRQ_A);
+/*  ASSERT_TRUE (strcmp(MutexName, name) == 0U); You should not pass 0 to strcmp see doc for get name */
   ASSERT_TRUE (MutexName == 0U);
 
   /* Delete mutex object */
@@ -761,8 +762,7 @@ void TC_MutexRobust (void) {
     /* Terminate owner thread */
     ASSERT_TRUE (osThreadTerminate (id[0]) == osOK);
 
-    /* Need a delay to allow the reaper to run */
-    osDelay(10);
+    osDelay(1);
 
     /* Check new owner */
     ASSERT_TRUE (osMutexGetOwner(MutexId) == id[1]);

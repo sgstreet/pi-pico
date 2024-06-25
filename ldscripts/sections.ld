@@ -307,7 +307,7 @@ SECTIONS
 		__tdata_end__ = .;
 		. = ALIGN(4);
 
-	} > RODATA
+	} >DATA AT> RODATA
 	__tdata = LOADADDR(.tdata);
 	__tdata_size = SIZEOF(.tdata);
 	__tdata_source = __tdata;
