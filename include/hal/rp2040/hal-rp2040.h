@@ -12,7 +12,6 @@
 #define HAL_PERIODIC_TIME_BASE_HZ 1000000
 
 #include <hal/rp2040/hal-rp2040-dma.h>
-#include <hal/rp2040/hal-rp2040-pio.h>
 #include <hal/rp2040/hal-rp2040-pwm.h>
 
 #endif

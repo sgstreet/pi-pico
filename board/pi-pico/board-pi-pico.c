@@ -6,24 +6,6 @@
 
 #include <board/board.h>
 
-const struct board_half_duplex_config board_half_duplex_config[] =
-{
-	{
-		.pio_machine = 0,
-		.gpio_pin = 13,
-		.dma_channel = 0,
-		.pio_irq = PIO0_IRQ_0_IRQn,
-		.dma_irq = DMA_IRQ_0_IRQn,
-	},
-	{
-		.pio_machine = 1,
-		.gpio_pin = 12,
-		.dma_channel = 1,
-		.pio_irq = PIO0_IRQ_0_IRQn,
-		.dma_irq = DMA_IRQ_0_IRQn,
-	},
-};
-
 IRQn_Type board_swi_lookup(unsigned int swi)
 {
 	assert(swi < BOARD_SWI_NUM);

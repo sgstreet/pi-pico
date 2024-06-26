@@ -3,7 +3,4 @@
 
 #include __HAL
 
-#include <hal/hal-periodic.h>
-#include <hal/hal-timestamp.h>
-
 #endif

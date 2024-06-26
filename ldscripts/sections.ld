@@ -191,26 +191,6 @@ SECTIONS
 
 	__etext = .;
 
-	.vtor_0 (NOLOAD) :
-	{
-		FILL(0xff)
-		. = ALIGN(256);
-		. += __vector_size;
-		. = ALIGN(4);
-	} > CORE0
-	__vtor_0 = LOADADDR(.vtor_0);
-	__vtor_0_size = SIZEOF(.vtor_0);
-
-	.vtor_1 (NOLOAD) :
-	{
-		FILL(0xff)
-		. = ALIGN(256);
-		. += __vector_size;
-		. = ALIGN(4);
-	} > CORE1
-	__vtor_1 = LOADADDR(.vtor_1);
-	__vtor_1_size = SIZEOF(.vtor_1);
-
 	.core_local_0 (NOLOAD) :
 	{
 		FILL(0x00)
@@ -245,6 +225,16 @@ SECTIONS
 	} > CORE1
 	__core_local_1 = LOADADDR(.core_local_1);
 	__core_local_1_size = SIZEOF(.core_local_1);
+
+	.vtor (NOLOAD) :
+	{
+		FILL(0xff)
+		. = ALIGN(256);
+		. += __vector_size;
+		. = ALIGN(4);
+	} > FAST
+	__vtor = LOADADDR(.vtor);
+	__vtor_size = SIZEOF(.vtor);
 
 	.fast :
 	{
@@ -356,8 +346,8 @@ SECTIONS
 		__copy_table_start__ = .;
 
 		LONG(__vector)
-		LONG(__vtor_0)
-		LONG(__vtor_0_size)
+		LONG(__vtor)
+		LONG(__vtor_size)
 
 		LONG(__core_data)
 		LONG(__core_local_0)
@@ -366,10 +356,6 @@ SECTIONS
 		LONG(__tdata)
 		LONG(__core_local_tls_0)
 		LONG(__tdata_size)
-
-		LONG(__vector)
-		LONG(__vtor_1)
-		LONG(__vtor_1_size)
 
 		LONG(__core_data)
 		LONG(__core_local_1)

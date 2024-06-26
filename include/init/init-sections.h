@@ -67,8 +67,7 @@ extern char __heap_start[];
 extern char __heap_end[];
 extern void *__stack;
 
-extern void *__vtor_0;
-extern void *__vtor_1;
+extern void *__vtor;
 
 extern char __core_data[];
 extern char __core_data_size[];

@@ -22,8 +22,6 @@
 #include <rtos/rtos.h>
 #include <init/init-sections.h>
 
-#include <hal/hal-timestamp.h>
-
 #include "bench_api.h"
 
 #define TIMER_ISR_VECTOR_TABLE_INDEX  15
@@ -54,10 +52,6 @@ void bench_test_task(void *context)
 
 void bench_test_init(void (*test_init_function)(void *))
 {
-	/* Move vtor */
-	SCB->VTOR = (uintptr_t)&__vtor_0;
-	__DMB();
-
 	/* First initialize the kernel so we can add the first task */
 	osStatus_t os_status = osKernelInitialize();
 	if (os_status != osOK) {

@@ -15,8 +15,13 @@ export OUTPUT_ROOT ?= ${PROJECT_ROOT}/build
 export TOOLS_ROOT ?= ${PROJECT_ROOT}/tools
 export PREFIX ?= ${PROJECT_ROOT}/images
 
+ifeq (${BUILD_TYPE},all)
+export INSTALL_ROOT := ${PREFIX}$(if ${BOARD_TYPE},/${BOARD_TYPE},)
+export BUILD_ROOT := ${OUTPUT_ROOT}$(if ${BOARD_TYPE},/${BOARD_TYPE},)
+else
 export INSTALL_ROOT := ${PREFIX}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
 export BUILD_ROOT := ${OUTPUT_ROOT}$(if ${BOARD_TYPE},/${BOARD_TYPE},)$(if ${BUILD_TYPE},/${BUILD_TYPE},)
+endif
 
 ifeq (${V},)
 SILENT=--silent
@@ -29,24 +34,31 @@ include ${TOOLS_ROOT}/makefiles/setup.mk
 else ifeq (${MAKECMDGOALS},host-tools)
 include ${TOOLS_ROOT}/makefiles/setup.mk
 else ifeq (${BUILD_TYPE},all)
+
 all:
 	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=debug all
 	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=release all
 .PHONY: all
+
+clean:
+	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=debug clean
+	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/Makefile BUILD_TYPE=release clean
+.PHONY: clean
+
 else
 include ${TOOLS_ROOT}/makefiles/tree.mk
 
 SUBDIRS := $(filter-out, host-tools, ${SUBDIRS})
 
-init board diag cmsis sys bootstrap lib hal hardware rtos: runtime
-test: init board diag cmsis sys bootstrap lib hal hardware rtos
+init board diag cmsis sys bootstrap lib hardware rtos: runtime
+test: init board diag cmsis sys bootstrap lib hardware rtos
 target: test
 
 endif
 
 distclean:
-	@echo "DISTCLEAN ${BUILD_ROOT} ${INSTALL_ROOT}"
-	-${RM} -r ${BUILD_ROOT} ${INSTALL_ROOT}
+	@echo "DISTCLEAN ${PREFIX} ${OUTPUT_ROOT}"
+	-${RM} -r ${PREFIX} ${OUTPUT_ROOT}
 
 realclean:
 	-${RM} -r ${OUTPUT_ROOT} ${PREFIX} ${PROJECT_ROOT}/tmp ${PROJECT_ROOT}/local

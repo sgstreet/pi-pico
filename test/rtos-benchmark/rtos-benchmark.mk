@@ -24,8 +24,7 @@ TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += sys
 TARGET_OBJ_LIBS += cmsis/device/rp2040
 TARGET_OBJ_LIBS += init
-TARGET_OBJ_LIBS += hal/hal-${CHIP_TYPE}
-TARGET_OBJ_LIBS += hardware/${CHIP_TYPE}
+TARGET_OBJ_LIBS += hardware hardware/${CHIP_TYPE}
 TARGET_OBJ_LIBS += rtos/rtos-toolkit rtos/rtos-toolkit/cmsis-rtos2
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk

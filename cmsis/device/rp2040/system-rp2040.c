@@ -219,6 +219,10 @@ void SystemInit(void)
 	RESETS->RESET = ~RESETS_RESETS_ALL;
 	while ((RESETS->RESET_DONE & RESETS_RESETS_ALL) != RESETS_RESETS_ALL);
 
+	/* Relocate the interrupt vector, it has already been copying into place */
+	SCB->VTOR = (uintptr_t)&__vtor;
+	__DSB();
+
 	SystemResetCore(1);
 }
 

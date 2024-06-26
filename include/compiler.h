@@ -42,8 +42,11 @@
 #endif
 
 #ifndef __fast_section
-//#define __fast_section __attribute__((section(".fast")))
-#define __fast_section
+#define __fast_section __attribute__((section(".fast")))
+#endif
+
+#ifndef __irq_handler
+#define __irq_handler __fast_section __optimize_size
 #endif
 
 #ifndef __optimize

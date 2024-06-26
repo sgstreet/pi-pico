@@ -22,10 +22,9 @@ TARGET_OBJ_LIBS := bootstrap
 TARGET_OBJ_LIBS += board board/${BOARD_TYPE}
 TARGET_OBJ_LIBS += diag diag/board
 TARGET_OBJ_LIBS += sys
-TARGET_OBJ_LIBS += cmsis/device/rp2040
+TARGET_OBJ_LIBS += cmsis/device/${CHIP_TYPE}
 TARGET_OBJ_LIBS += init
-TARGET_OBJ_LIBS += hal/hal-${CHIP_TYPE}
-TARGET_OBJ_LIBS += rtos/rtos-toolkit rtos/rtos-toolkit/cmsis-rtos2
+TARGET_OBJ_LIBS += hardware hardware/${CHIP_TYPE}
 
 include ${PROJECT_ROOT}/tools/makefiles/project.mk
 

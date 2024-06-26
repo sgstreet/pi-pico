@@ -50,10 +50,10 @@ unsigned long systick_get_ticks(void)
 	return cls_datum(systicks);
 }
 
-void systick_delay(unsigned long msecs)
+void systick_delay(unsigned long ticks)
 {
 	uint32_t start = systick_get_ticks();
-	while((systick_get_ticks() - start) < msecs);
+	while((systick_get_ticks() - start) < ticks);
 }
 
 int systick_register_handler(void (*handler)(void *context), void *context)

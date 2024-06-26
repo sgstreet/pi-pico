@@ -18,7 +18,7 @@ int systick_register_handler(void (*handler)(void *context), void *context);
 void systick_unregister_handler(void (*handler)(void *context));
 
 unsigned long systick_get_ticks(void);
-void systick_delay(unsigned long msecs);
+void systick_delay(unsigned long ticks);
 
 void systick_init(void);
 
