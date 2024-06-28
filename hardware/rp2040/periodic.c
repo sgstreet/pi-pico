@@ -36,7 +36,7 @@ unsigned long long periodic_timestamp(void);
 
 static struct periodic_channel channels[TIMER_NUM_CHANNELS] = { 0 };
 
-static __irq_handler void periodic_alarm(IRQn_Type irq, void *context)
+static __fast_section void periodic_alarm(IRQn_Type irq, void *context)
 {
 	struct periodic_channel *channel = context;
 
@@ -51,28 +51,28 @@ static __irq_handler void periodic_alarm(IRQn_Type irq, void *context)
 	swi_trigger(channel->swi);
 }
 
-__irq_handler void TIMER_IRQ_0_Handler(void)
+__fast_section void TIMER_IRQ_0_Handler(void)
 {
 	/* Forward only if triggered */
 	if (TIMER->INTS & TIMER_INTS_ALARM_0_Msk)
 		periodic_alarm(TIMER_IRQ_0_IRQn, &channels[0]);
 }
 
-__irq_handler void TIMER_IRQ_1_Handler(void)
+__fast_section void TIMER_IRQ_1_Handler(void)
 {
 	/* Forward only if triggered */
 	if (TIMER->INTS & TIMER_INTS_ALARM_1_Msk)
 		periodic_alarm(TIMER_IRQ_1_IRQn, &channels[1]);
 }
 
-__irq_handler void TIMER_IRQ_2_Handler(void)
+__fast_section void TIMER_IRQ_2_Handler(void)
 {
 	/* Forward only if triggered */
 	if (TIMER->INTS & TIMER_INTS_ALARM_2_Msk)
 		periodic_alarm(TIMER_IRQ_2_IRQn, &channels[2]);
 }
 
-__irq_handler void TIMER_IRQ_3_Handler(void)
+__fast_section void TIMER_IRQ_3_Handler(void)
 {
 	/* Forward only if triggered */
 	if (TIMER->INTS & TIMER_INTS_ALARM_3_Msk)

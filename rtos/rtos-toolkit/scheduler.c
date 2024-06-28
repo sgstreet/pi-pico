@@ -416,7 +416,7 @@ __weak unsigned long scheduler_get_ticks(void)
 	return cls_datum_core(0, ticks);
 }
 
-__fast_section __optimize void scheduler_tick(void)
+void scheduler_tick(void)
 {
 	/* Someone may have enabled us too early, ignore */
 	if (!scheduler_is_running())
