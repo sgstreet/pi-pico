@@ -105,7 +105,7 @@ void bip_buffer_destroy(struct bip_buffer *bip_buffer)
 
 void *bip_buffer_write_acquire(struct bip_buffer *bip_buffer, size_t *needed)
 {
-	assert(bip_buffer != 0);
+	assert(bip_buffer != 0 && needed != 0);
 
 	/* Load stable data set */
 	const size_t write_index = atomic_load_explicit(&bip_buffer->write_index, memory_order_relaxed);
@@ -120,7 +120,7 @@ void *bip_buffer_write_acquire(struct bip_buffer *bip_buffer, size_t *needed)
 		*needed = linear_avail < avail - linear_avail ? avail - linear_avail : linear_avail;
 
 	/* Check to see if there was any space available */
-	if (needed > 0) {
+	if (*needed > 0) {
 
 		/* Room at the end of the buffer? */
 		if (*needed <= linear_avail)
@@ -142,14 +142,15 @@ void bip_buffer_write_release(struct bip_buffer *bip_buffer, size_t used)
 	assert(bip_buffer != 0);
 
 	size_t write_index = atomic_load_explicit(&bip_buffer->write_index, memory_order_relaxed);
-	size_t invalidate_index = atomic_load_explicit(&bip_buffer->invalidate_index, memory_order_relaxed);
 
-	/* Update the invalidate index if the write acquire wrapped the buffer */
+	/* If the write wrapped set the invalidate index and reset write index*/
+	size_t invalidate_index;
 	if (bip_buffer->write_wrapped) {
 		bip_buffer->write_wrapped = false;
 		invalidate_index = write_index;
-		write_index = 0;
-	}
+		write_index = 0U;
+	} else
+		invalidate_index = atomic_load_explicit(&bip_buffer->invalidate_index, memory_order_relaxed);
 
 	/* Update the write index */
 	write_index += used;
@@ -204,21 +205,20 @@ void bip_buffer_read_release(struct bip_buffer *bip_buffer, size_t used)
 {
 	assert(bip_buffer != 0);
 
-	/* Load the read index */
-	size_t read_index = atomic_load_explicit(&bip_buffer->read_index, memory_order_relaxed);
-
-	/* Did the read wrap? if so reset the read index */
+	/* If the read wrapped, overflow the read index */
+	size_t read_index;
 	if (bip_buffer->read_wrapped) {
 		bip_buffer->read_wrapped = false;
-		read_index = 0;
-	}
+		read_index = 0U;
+	} else
+		read_index = atomic_load_explicit(&bip_buffer->read_index, memory_order_relaxed);
 
-	/* Update the read index, wrapping if needed */
+	/* Increment the read index and wrap to 0 if needed */
 	read_index += used;
 	if (read_index == bip_buffer->size)
-		read_index = 0;
+		read_index = 0U;
 
-	/* Update the read index */
+	/* Store the indexes with adequate memory ordering */
 	atomic_store_explicit(&bip_buffer->read_index, read_index, memory_order_release);
 }
 
@@ -234,12 +234,10 @@ size_t bip_buffer_space_available(struct bip_buffer *bip_buffer)
 	/* Load stable data set */
 	const size_t write_index = bip_buffer->write_index;
 	const size_t read_index = bip_buffer->read_index;
-	const size_t linear = bip_buffer->size - read_index;
 	const size_t avail = read_index > write_index ?  read_index - write_index - 1 : bip_buffer->size - (write_index - read_index) - 1;
-
-	/* Return the amount a linear space available */
-	return avail < linear ? avail : linear;
+	return avail;
 }
+
 
 size_t bip_buffer_data_available(struct bip_buffer *bip_buffer)
 {

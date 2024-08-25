@@ -270,6 +270,15 @@ uint32_t dma_remaining(uint32_t channel)
 	return *trans_count;
 }
 
+uint32_t dma_amount(uint32_t channel)
+{
+	assert(channel < DMA_NUM_CHANNELS);
+
+	volatile uint32_t *count = (void *)&DMA->CH0_DBG_TCR + (channel << 6UL);
+	volatile uint32_t *remaining = (void *)&DMA->CH0_TRANS_COUNT + (channel << 6UL);
+	return *count - *remaining;
+}
+
 void dma_abort(uint32_t channel)
 {
 	assert(channel < DMA_NUM_CHANNELS);

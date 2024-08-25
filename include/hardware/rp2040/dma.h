@@ -125,5 +125,6 @@ void dma_abort(uint32_t channel);
 bool dma_is_busy(uint32_t channel);
 bool dma_has_error(uint32_t channel);
 uint32_t dma_remaining(uint32_t channel);
+uint32_t dma_amount(uint32_t channel);
 
 #endif

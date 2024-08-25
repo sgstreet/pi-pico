@@ -5,9 +5,9 @@ extern int picolibc_getc(FILE *file);
 extern int picolibc_flush(FILE *file);
 extern int picolibc_close(FILE *file);
 
-struct iob _stdio = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD| __SWR, 0);
-struct iob _stderr = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD| __SWR, 0);
-struct iob _stddiag = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD| __SWR, 0);
+struct iob _stdio = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD | __SWR, 0);
+struct iob _stderr = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD | __SWR, 0);
+struct iob _stddiag = IOB_DEV_SETUP(picolibc_putc, picolibc_getc, picolibc_flush, picolibc_close, __SRD | __SWR, 0);
 
 FILE *const stdin = (FILE *)&_stdio;
 FILE *const stdout =(FILE *)&_stdio;

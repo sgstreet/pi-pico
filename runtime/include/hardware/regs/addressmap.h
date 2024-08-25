@@ -14,6 +14,57 @@
 #define REG_ALIAS_SET_BITS (0x2u << 12u)
 #define REG_ALIAS_CLR_BITS (0x3u << 12u)
 
+#undef XIP_CTRL_BASE
+#undef XIP_SRAM_BASE
+#undef XIP_SRAM_END
+#undef XIP_SSI_BASE
+#undef SRAM_BASE
+#undef SRAM_STRIPED_BASE
+#undef SRAM_STRIPED_END
+#undef SRAM4_BASE
+#undef SRAM5_BASE
+#undef SRAM_END
+#undef SRAM0_BASE
+#undef SRAM1_BASE
+#undef SRAM2_BASE
+#undef SRAM3_BASE
+#undef SYSINFO_BASE
+#undef SYSCFG_BASE
+#undef CLOCKS_BASE
+#undef RESETS_BASE
+#undef PSM_BASE
+#undef IO_BANK0_BASE
+#undef IO_QSPI_BASE
+#undef PADS_BANK0_BASE
+#undef PADS_QSPI_BASE
+#undef XOSC_BASE
+#undef PLL_SYS_BASE
+#undef PLL_USB_BASE
+#undef BUSCTRL_BASE
+#undef UART0_BASE
+#undef UART1_BASE
+#undef SPI0_BASE
+#undef SPI1_BASE
+#undef I2C0_BASE
+#undef I2C1_BASE
+#undef ADC_BASE
+#undef PWM_BASE
+#undef TIMER_BASE
+#undef WATCHDOG_BASE
+#undef RTC_BASE
+#undef ROSC_BASE
+#undef VREG_AND_CHIP_RESET_BASE
+#undef TBMAN_BASE
+#undef DMA_BASE
+#undef USBCTRL_DPRAM_BASE
+#undef USBCTRL_BASE
+#undef USBCTRL_REGS_BASE
+#undef PIO0_BASE
+#undef PIO1_BASE
+#undef XIP_AUX_BASE
+#undef SIO_BASE
+#undef PPB_BASE
+
 #define ROM_BASE _u(0x00000000)
 #define XIP_BASE _u(0x10000000)
 #define XIP_MAIN_BASE _u(0x10000000)
