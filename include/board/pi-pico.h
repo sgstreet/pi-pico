@@ -42,6 +42,8 @@
 #define BOARD_CLOCK_GPIO2_HZ 0UL
 #define BOARD_CLOCK_GPIO3_HZ 0UL
 
+#define BOARD_USBD_VBUS_DETECT_GPIO 24UL
+
 #define BOARD_CONSOLE_UART UART1
 #define BOARD_CONSOLE_UART_IRQ UART1_IRQ_IRQn
 #define BOARD_CONSOLE_BAUD_RATE 115200UL
@@ -53,5 +55,15 @@
 #define BOARD_LOGGER_BAUD_RATE 115200UL
 #define BOARD_LOGGER_DMA_CHANNEL 11
 #define BOARD_LOGGER_DMA_DREQ 20
+
+#define BOARD_NUM_UARTS 1
+
+struct board_uart
+{
+	UART0_Type *uart;
+	IRQn_Type irq;
+};
+
+extern const struct board_uart *const board_uarts;
 
 #endif

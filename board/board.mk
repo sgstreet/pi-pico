@@ -12,7 +12,7 @@
 #
 
 ifeq ($(findstring ${BUILD_ROOT},${CURDIR}),)
-target: ${BOARD_TYPE}
+SUBDIRS := ${BOARD_TYPE}
 include ${PROJECT_ROOT}/tools/makefiles/target.mk
 else
 
