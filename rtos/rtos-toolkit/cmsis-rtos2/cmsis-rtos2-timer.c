@@ -210,13 +210,23 @@ osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks)
 	timer->ticks = ticks;
 	timer->target = osKernelGetTickCount() + ticks;
 
-	/* Add to the timer list */
+	/* Carefully update the timer and add to the active list */
 	struct rtos_timer *current = 0;
 	uint32_t state = spin_lock_irqsave(&active_timers_lock);
+
+	/* Set the time ticks, target and ensure it is not already in the list */
+	timer->ticks = ticks;
+	timer->target = osKernelGetTickCount() + ticks;
+	list_remove(&timer->node);
+
+//	for (current = list_first_entry(&active_timers, typeof(*current), node); &current->node != (&active_timers); current = list_next_entry(current, node))
+	/* Find the insertion point and insert */
 	list_for_each_entry(current, &active_timers, node)
 		if (timer->target < current->target)
 			break;
 	list_insert_before(&current->node, &timer->node);
+
+	/* All good */
 	spin_unlock_irqrestore(&active_timers_lock, state);
 
 	/* All good */
