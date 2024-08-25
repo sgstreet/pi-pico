@@ -219,7 +219,6 @@ osStatus_t osTimerStart (osTimerId_t timer_id, uint32_t ticks)
 	timer->target = osKernelGetTickCount() + ticks;
 	list_remove(&timer->node);
 
-//	for (current = list_first_entry(&active_timers, typeof(*current), node); &current->node != (&active_timers); current = list_next_entry(current, node))
 	/* Find the insertion point and insert */
 	list_for_each_entry(current, &active_timers, node)
 		if (timer->target < current->target)
