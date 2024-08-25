@@ -7,6 +7,7 @@ export ARM_ARCH = armv6-m
 export ARCH_CROSS = cortex-m0plus
 
 export CHIP_TYPE ?= rp2040
+#export BOARD_TYPE ?= pico-motor
 export BOARD_TYPE ?= pi-pico
 
 export BUILD_TYPE ?= debug
@@ -50,11 +51,14 @@ include ${TOOLS_ROOT}/makefiles/tree.mk
 
 SUBDIRS := $(filter-out, host-tools, ${SUBDIRS})
 
-init board diag cmsis sys bootstrap lib hardware rtos: runtime
-test: init board diag cmsis sys bootstrap lib hardware rtos
+init board diag cmsis sys bootstrap lib hal rtos svc devices: runtime
+test: init board diag cmsis sys bootstrap lib hardware rtos svc devices
 target: test
 
 endif
+
+picolibc:
+	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/picolibc/picolibc.mk
 
 distclean:
 	@echo "DISTCLEAN ${PREFIX} ${OUTPUT_ROOT}"

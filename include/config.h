@@ -39,4 +39,7 @@
 
 #define SCHEDULER_TIME_SLICE 10UL
 
+#define SHELL_PROMPT "motor-controller> "
+#define SHELL_MOD "\nWelcome to the motor-controller shell\n"
+
 #endif
