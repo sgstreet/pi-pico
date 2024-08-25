@@ -88,7 +88,7 @@ osDequeId_t osDequeNew(uint32_t element_count, uint32_t element_size, const osDe
 	if (!attr)
 		attr = &default_attr;
 
-	/* Are implementation require that the element count be a power of two */
+	/* Our implementation require that the element count be a power of two */
 	if (modulo(element_size, element_size) != 0)
 		return 0;
 

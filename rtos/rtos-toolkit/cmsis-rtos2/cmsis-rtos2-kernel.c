@@ -506,6 +506,8 @@ osStatus_t osKernelResourceIsRegistered(osResourceId_t resource_id, osResource_t
 error_t errno_from_rtos(int rtos)
 {
 	switch (rtos) {
+		case osOK:
+			return 0;
 		case osErrorTimeout:
 			return ETIMEDOUT;
 		case osErrorResource:
