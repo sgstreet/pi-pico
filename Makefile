@@ -7,8 +7,7 @@ export ARM_ARCH = armv6-m
 export ARCH_CROSS = cortex-m0plus
 
 export CHIP_TYPE ?= rp2040
-#export BOARD_TYPE ?= pico-motor
-export BOARD_TYPE ?= pi-pico
+export BOARD_TYPE ?= pico-motor
 
 export BUILD_TYPE ?= debug
 export PROJECT_ROOT ?= ${CURDIR}
@@ -51,7 +50,8 @@ include ${TOOLS_ROOT}/makefiles/tree.mk
 
 runtime: picolibc
 init board diag cmsis sys bootstrap lib hardware rtos svc devices: runtime
-test: init board diag cmsis sys bootstrap lib hardware rtos svc devices
+apps: init board diag cmsis sys bootstrap lib hardware rtos svc devices
+test: apps
 target: test
 
 endif
