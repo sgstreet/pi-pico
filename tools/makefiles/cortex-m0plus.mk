@@ -1,5 +1,5 @@
 CROSS_COMPILE ?= arm-none-eabi-
-CROSS_FLAGS ?= -mcpu=cortex-m0plus -mtune=cortex-m0plus -march=armv6s-m -mfloat-abi=soft -mthumb -mno-unaligned-access --specs=picolibc.specs
+CROSS_FLAGS ?= -mcpu=cortex-m0plus -mtune=cortex-m0plus -march=armv6s-m -mfloat-abi=soft -mthumb -mno-unaligned-access --specs=${BUILD_ROOT}/picolibc/arm-none-eabi/lib/picolibc.specs
 
 CC := ${CROSS_COMPILE}gcc
 CXX := ${CROSS_COMPILE}g++

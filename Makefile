@@ -49,16 +49,12 @@ clean:
 else
 include ${TOOLS_ROOT}/makefiles/tree.mk
 
-SUBDIRS := $(filter-out, host-tools, ${SUBDIRS})
-
-init board diag cmsis sys bootstrap lib hal rtos svc devices: runtime
+runtime: picolibc
+init board diag cmsis sys bootstrap lib hardware rtos svc devices: runtime
 test: init board diag cmsis sys bootstrap lib hardware rtos svc devices
 target: test
 
 endif
-
-picolibc:
-	${MAKE} --no-print-directory -f ${PROJECT_ROOT}/picolibc/picolibc.mk
 
 distclean:
 	@echo "DISTCLEAN ${PREFIX} ${OUTPUT_ROOT}"

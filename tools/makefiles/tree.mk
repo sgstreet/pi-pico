@@ -28,5 +28,5 @@ clean: target
 
 install: target
 
-#$(info SUBDIR=${SUBDIRS})
+#$(info SUBDIRS=${SUBDIRS})
 
