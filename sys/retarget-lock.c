@@ -21,7 +21,8 @@
 
 #include <cmsis/cmsis.h>
 
-#ifdef _RETARGETABLE_LOCKING
+
+#ifndef __SINGLE_THREAD
 
 static struct __retarget_runtime_lock libc_recursive_mutex = { 0 };
 __weak struct __lock __lock___libc_recursive_mutex =

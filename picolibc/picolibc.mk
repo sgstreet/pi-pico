@@ -16,12 +16,13 @@ include ${PROJECT_ROOT}/tools/makefiles/target.mk
 else
 
 GIT_REPOSITORY := https://github.com/picolibc/picolibc.git
-GIT_TAG := 1.8.9-2
+GIT_TAG := 1.8.10-3
 
 ${CURDIR}/README.md:
 	@echo "CLONING ${GIT_REPOSITORY}@${GIT_TAG}"
 	git clone ${GIT_REPOSITORY} --quiet ${CURDIR}
 	git switch --quiet --detach ${GIT_TAG}
+	git revert --no-edit 3c026d9141a5bcd41f7f58332f2cd11cf4662a69
 	
 ${CURDIR}/build/.gitignore: ${CURDIR}/README.md
 	@echo "CONFIGURING ${CURDIR}"

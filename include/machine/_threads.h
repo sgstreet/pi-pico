@@ -22,6 +22,12 @@
 
 #include <rtos/rtos-toolkit/scheduler.h>
 
+#define __requires_exclusive(x)
+#define __requires_unlocked(x)
+#define __locks_exclusive(x)
+#define __trylocks_exclusive(x,y)
+#define __unlocks(x)
+
 #define __THRD_STACK_SIZE 1024
 #define __THRD_PRIORITY (SCHEDULER_NUM_TASK_PRIORITIES / 2)
 #define __THRD_KEYS_MAX 8
