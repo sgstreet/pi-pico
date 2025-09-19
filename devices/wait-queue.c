@@ -144,7 +144,7 @@ int wait_notify(struct wait_queue *queue, bool all)
 		} else {
 
 			/* Find the highest priority waiter to wake, because the list is not empty and the list is locked there must be a least one */
-			/* TODO osThreadGetPriority can not be call in interrupt context. This will not find the highest priority thread its priority is changed while blocked on the wait queue */
+			/* TODO osThreadGetPriority can not be call in interrupt context. This will not find the highest priority thread if its priority is changed while blocked on the wait queue */
 			wakers = alloca(sizeof(osThreadId_t));
 			num_wakers = 1;
 			osPriority_t highest_priority = osPriorityNone;

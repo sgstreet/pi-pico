@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
 	syslog_info("loading pio program\n");
 	uint32_t *pio_mem = (uint32_t *)&PIO1->INSTR_MEM0;
-	for (int i = 0; i < array_sizeof(squarewave_program_instructions); ++i)
+	for (unsigned i = 0; i < array_sizeof(squarewave_program_instructions); ++i)
 		pio_mem[i] = squarewave_program_instructions[i];
 
 	syslog_info("setting to 25MHZ\n");

@@ -50,7 +50,7 @@ void save_fault(const struct cortexm_fault *fault)
 	int backtrace_entries = _backtrace_unwind(backtrace, array_sizeof(fault_backtrace), &backtrace_frame);
 
 	/* Down via the board IO function */
-	for (size_t i = 0; i < backtrace_entries; ++i) {
+	for (int i = 0; i < backtrace_entries; ++i) {
 		snprintf(buffer, 256, "%s@%p - %p", backtrace[i].name, backtrace[i].function, backtrace[i].address);
 		buffer[255] = 0;
 		board_puts(buffer);

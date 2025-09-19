@@ -323,7 +323,7 @@ static inline unsigned long sched_queue_highest_priority(struct sched_queue *que
 
 static void sched_queue_reprioritize(struct task *task, unsigned long new_priority)
 {
-	assert(task != 0 && new_priority >= 0 && new_priority < SCHEDULER_NUM_TASK_PRIORITIES);
+	assert(task != 0);
 
 	task->current_priority = new_priority;
 	struct sched_queue *queue = task->current_queue;
@@ -591,7 +591,7 @@ void scheduler_wait_svc(struct scheduler_frame *frame)
 {
 	struct futex *futex = (struct futex *)frame->r0;
 	long expected = (long)frame->r1;
-	long value = (futex->flags & SCHEDULER_FUTEX_CONTENTION_TRACKING) ? expected | SCHEDULER_FUTEX_CONTENTION_TRACKING : expected;
+	long value = (futex->flags & SCHEDULER_FUTEX_CONTENTION_TRACKING) ? expected | (long)SCHEDULER_FUTEX_CONTENTION_TRACKING : expected;
 	unsigned long ticks = frame->r2;
 	struct task *current = sched_get_current();
 
@@ -1197,7 +1197,7 @@ unsigned long scheduler_enter_critical(void)
 	uint32_t state = disable_interrupts();
 
 	/* Do already owne the critical section? */
-	if (scheduler->critical == scheduler_current_core()) {
+	if (scheduler->critical == (int)scheduler_current_core()) {
 		++scheduler->critical_counter;
 		return state;
 	}
@@ -1208,8 +1208,8 @@ unsigned long scheduler_enter_critical(void)
 		/* In a multicore we need the spinlock */
 		scheduler_spin_lock();
 
-		/* Try to grap the critical sections supporting recursive entrances, keep the spinlock if successful */
-		if (scheduler->critical == UINT32_MAX || scheduler->critical == scheduler_current_core()) {
+		/* Try to grab the critical sections supporting recursive entrances, keep the spinlock if successful */
+		if (scheduler->critical == -1 || scheduler->critical == (int)scheduler_current_core()) {
 			scheduler->critical = scheduler_current_core();
 			++scheduler->critical_counter;
 			return state;
@@ -1222,14 +1222,14 @@ unsigned long scheduler_enter_critical(void)
 
 void scheduler_exit_critical(unsigned long state)
 {
-	assert(scheduler_is_running() && scheduler->critical == scheduler_current_core());
+	assert(scheduler_is_running() && scheduler->critical == (int)scheduler_current_core());
 
 	/* Handle nested critical sections */
 	if (--scheduler->critical_counter >= 1)
 		return;
 
 	/* Release the critical section */
-	scheduler->critical = UINT32_MAX;
+	scheduler->critical = -1;
 
 	/* Now the spin lock and the interrupts */
 	scheduler_spin_unlock();

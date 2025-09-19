@@ -73,8 +73,24 @@ static bool spin_is_locked(spin_lock_t *lock)
 //	return (int16_t)((value >> 16) - (value & 0xffff)) > 1;
 //}
 
+static bool atomic_flag_test(void)
+{
+	atomic_flag flag = {0};
+
+	bool result = atomic_flag_test_and_set(&flag);
+
+	printf("result: %s\n", result ? "true" : "false");
+
+	atomic_flag_clear(&flag);
+
+	return result;
+}
+
 int main(int argc, char **argv)
 {
+
+	atomic_flag_test();
+
 	spin_lock_t locks[16];
 
 	for (size_t i = 0; i < array_sizeof(locks); ++i)

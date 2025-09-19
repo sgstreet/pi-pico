@@ -32,7 +32,7 @@ void __atomic_init(void);
 
 static volatile uint32_t *locks = &SIO->SPINLOCK0 + ATOMIC_HW_LOCK_INDEX;
 
-static __optimize __always_inline inline uint32_t __atomic_lock(volatile void *mem)
+static __optimize __always_inline inline uint32_t __atomic_lock(const volatile void *mem)
 {
 	volatile uint32_t *const hw_lock = HW_LOCK_PTR(mem);
 
@@ -43,7 +43,7 @@ static __optimize __always_inline inline uint32_t __atomic_lock(volatile void *m
 	return state;
 }
 
-static __optimize __always_inline inline void __atomic_unlock(volatile void *mem, uint32_t state)
+static __optimize __always_inline inline void __atomic_unlock(const volatile void *mem, uint32_t state)
 {
 	volatile uint32_t *const hw_lock = HW_LOCK_PTR(mem);
 
@@ -52,62 +52,62 @@ static __optimize __always_inline inline void __atomic_unlock(volatile void *mem
 	enable_interrupts(state);
 }
 
-__fast_section __optimize uint8_t __atomic_fetch_add_1(volatile void *mem, uint8_t val, int model)
+__fast_section __optimize uint8_t __atomic_fetch_add_1(volatile void *mem, uint8_t val, __unused int model)
 {
 	volatile uint8_t *ptr = mem;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint8_t result = *ptr;
 	*ptr += val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint8_t __atomic_fetch_sub_1(volatile void *mem, uint8_t val, int model)
+__fast_section __optimize uint8_t __atomic_fetch_sub_1(volatile void *mem, uint8_t val, __unused int model)
 {
 	volatile uint8_t *ptr = mem;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint8_t result = *ptr;
 	*ptr -= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint8_t __atomic_fetch_and_1(volatile void *mem, uint8_t val, int model)
+__fast_section __optimize uint8_t __atomic_fetch_and_1(volatile void *mem, uint8_t val, __unused int model)
 {
 	volatile uint8_t *ptr = mem;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint8_t result = *ptr;
 	*ptr &= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint8_t __atomic_fetch_or_1(volatile void *mem, uint8_t val, int model)
+__fast_section __optimize uint8_t __atomic_fetch_or_1(volatile void *mem, uint8_t val, __unused  int model)
 {
 	volatile uint8_t *ptr = mem;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint8_t result = *ptr;
 	*ptr |= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint8_t __atomic_exchange_1(volatile void *mem, uint8_t val, int model)
+__fast_section __optimize uint8_t __atomic_exchange_1(volatile void *mem, uint8_t val, __unused int model)
 {
 	volatile uint8_t *ptr = mem;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint8_t result = *ptr;
 	*ptr = val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize bool __atomic_compare_exchange_1(volatile void *mem, void *expected, uint8_t desired, bool weak, int success, int failure)
+__fast_section __optimize bool __atomic_compare_exchange_1(volatile void *mem, void *expected, uint8_t desired, __unused bool weak, __unused int success, __unused int failure)
 {
 	bool result = false;
 	volatile uint8_t *ptr = mem;
 	uint8_t *e_ptr = expected;
-	uint8_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	if (*ptr == *e_ptr) {
 		*ptr = desired;
 		result = true;
@@ -117,37 +117,37 @@ __fast_section __optimize bool __atomic_compare_exchange_1(volatile void *mem, v
 	return result;
 }
 
-__fast_section __optimize uint16_t __atomic_fetch_add_2(volatile void *mem, uint16_t val, int model)
+__fast_section __optimize uint16_t __atomic_fetch_add_2(volatile void *mem, uint16_t val, __unused int model)
 {
 	volatile uint16_t *ptr = mem;
-	uint16_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint16_t result = *ptr;
 	*ptr += val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint16_t __atomic_fetch_sub_2(volatile void *mem, uint16_t val, int model)
+__fast_section __optimize uint16_t __atomic_fetch_sub_2(volatile void *mem, uint16_t val, __unused  int model)
 {
 	volatile uint16_t *ptr = mem;
-	uint16_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint16_t result = *ptr;
 	*ptr -= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint16_t __atomic_fetch_and_2(volatile void *mem, uint16_t val, int model)
+__fast_section __optimize uint16_t __atomic_fetch_and_2(volatile void *mem, uint16_t val, __unused int model)
 {
 	volatile uint16_t *ptr = mem;
-	uint16_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint16_t result = *ptr;
 	*ptr &= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint16_t __atomic_fetch_or_2(volatile void *mem, uint16_t val, int model)
+__fast_section __optimize uint16_t __atomic_fetch_or_2(volatile void *mem, uint16_t val, __unused int model)
 {
 	volatile uint16_t *ptr = mem;
 	uint16_t state = __atomic_lock(mem);
@@ -157,22 +157,22 @@ __fast_section __optimize uint16_t __atomic_fetch_or_2(volatile void *mem, uint1
 	return result;
 }
 
-__fast_section __optimize uint16_t __atomic_exchange_2(volatile void *mem, uint16_t val, int model)
+__fast_section __optimize uint16_t __atomic_exchange_2(volatile void *mem, uint16_t val, __unused int model)
 {
 	volatile uint16_t *ptr = mem;
-	uint16_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint16_t result = *ptr;
 	*ptr = val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize bool __atomic_compare_exchange_2(volatile void *mem, void *expected, uint16_t desired, bool weak, int success, int failure)
+__fast_section __optimize bool __atomic_compare_exchange_2(volatile void *mem, void *expected, uint16_t desired, __unused bool weak, __unused int success, __unused int failure)
 {
 	bool result = false;
 	volatile uint16_t *ptr = mem;
 	uint16_t *e_ptr = expected;
-	uint16_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	if (*ptr == *e_ptr) {
 		*ptr = desired;
 		result = true;
@@ -182,62 +182,62 @@ __fast_section __optimize bool __atomic_compare_exchange_2(volatile void *mem, v
 	return result;
 }
 
-__fast_section __optimize uint32_t __atomic_fetch_add_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize unsigned int __atomic_fetch_add_4(volatile void *mem, unsigned int val, __unused int model)
 {
 	volatile uint32_t *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	*ptr += val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint32_t __atomic_fetch_sub_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize unsigned int __atomic_fetch_sub_4(volatile void *mem, unsigned int val, __unused int model)
 {
-	volatile uint32_t *ptr = mem;
+	volatile unsigned int *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	*ptr -= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint32_t __atomic_fetch_and_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize unsigned int __atomic_fetch_and_4(volatile void *mem, unsigned int val, __unused int model)
 {
-	volatile uint32_t *ptr = mem;
+	volatile unsigned int *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	*ptr &= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint32_t __atomic_fetch_or_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize unsigned int __atomic_fetch_or_4(volatile void *mem, unsigned int val, __unused int model)
 {
-	volatile uint32_t *ptr = mem;
+	volatile unsigned int *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	*ptr |= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint32_t __atomic_exchange_4(volatile void *mem, uint32_t val, int model)
+__fast_section __optimize unsigned int __atomic_exchange_4(volatile void *mem, unsigned int val, __unused int model)
 {
-	volatile uint32_t *ptr = mem;
+	volatile unsigned int *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	*ptr = val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize bool __atomic_compare_exchange_4(volatile void *mem, void *expected, uint32_t desired, bool weak, int success, int failure)
+__fast_section __optimize bool __atomic_compare_exchange_4(volatile void *mem, void *expected, unsigned int desired, __unused bool weak, __unused int success, __unused int failure)
 {
 	bool result = false;
-	volatile uint32_t *ptr = mem;
-	uint32_t *e_ptr = expected;
-	uint32_t state = __atomic_lock(mem);
+	volatile unsigned int *ptr = mem;
+	unsigned int *e_ptr = expected;
+	unsigned int state = __atomic_lock(mem);
 	if (*ptr == *e_ptr) {
 		*ptr = desired;
 		result = true;
@@ -247,62 +247,62 @@ __fast_section __optimize bool __atomic_compare_exchange_4(volatile void *mem, v
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_fetch_add_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize uint64_t __atomic_fetch_add_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint64_t result = *ptr;
 	*ptr += val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_fetch_sub_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize uint64_t __atomic_fetch_sub_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint64_t result = *ptr;
 	*ptr -= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_fetch_and_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize uint64_t __atomic_fetch_and_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint64_t result = *ptr;
 	*ptr &= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_fetch_or_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize uint64_t __atomic_fetch_or_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint64_t result = *ptr;
 	*ptr |= val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_exchange_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize uint64_t __atomic_exchange_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	uint64_t result = *ptr;
 	*ptr = val;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize bool __atomic_compare_exchange_8(volatile void *mem, void *expected, uint64_t desired, bool weak, int success, int failure)
+__fast_section __optimize bool __atomic_compare_exchange_8(volatile void *mem, void *expected, uint64_t desired, __unused bool weak, __unused int success, __unused int failure)
 {
 	bool result = false;
 	volatile uint64_t *ptr = mem;
 	uint64_t *e_ptr = expected;
-	uint64_t state = __atomic_lock(mem);
+	uint32_t state = __atomic_lock(mem);
 	if (*ptr == *e_ptr) {
 		*ptr = desired;
 		result = true;
@@ -312,16 +312,16 @@ __fast_section __optimize bool __atomic_compare_exchange_8(volatile void *mem, v
 	return result;
 }
 
-__fast_section __optimize uint64_t __atomic_load_8(volatile void *mem, int model)
+__fast_section __optimize uint64_t __atomic_load_8(const volatile void *mem, __unused int model)
 {
-	volatile uint64_t *ptr = mem;
+	const volatile uint64_t *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
-	uint32_t result = *ptr;
+	unsigned int result = *ptr;
 	__atomic_unlock(mem, state);
 	return result;
 }
 
-__fast_section __optimize void __atomic_store_8(volatile void *mem, uint64_t val, int model)
+__fast_section __optimize void __atomic_store_8(volatile void *mem, uint64_t val, __unused int model)
 {
 	volatile uint64_t *ptr = mem;
 	uint32_t state = __atomic_lock(mem);
@@ -329,23 +329,28 @@ __fast_section __optimize void __atomic_store_8(volatile void *mem, uint64_t val
 	__atomic_unlock(mem, state);
 }
 
-__fast_section __optimize bool __atomic_test_and_set_m0(volatile void *mem, int model)
-{
-	volatile bool *ptr = mem;
-	uint32_t state = __atomic_lock(mem);
-	volatile bool result = *ptr;
-	*ptr = true;
-	__atomic_unlock(mem, state);
-	return result;
-}
+//extern _Bool __atomic_test_and_set_m0(volatile atomic_flag *flag, int model);
+//extern void __atomic_clear_m0(volatile atomic_flag *flag, int model);
 
-__fast_section __optimize void __atomic_clear_m0(volatile void *mem, int model)
-{
-	volatile bool *ptr = mem;
-	uint32_t state = __atomic_lock(mem);
-	*ptr = false;
-	__atomic_unlock(mem, state);
-}
+//extern _Bool __atomic_test_and_set(volatile void *mem, int model);
+//extern void __atomic_clear(volatile void *mem, int model);
+
+//__fast_section __optimize bool __atomic_test_and_set_m0(volatile void *mem, int model)
+//{
+//	volatile bool *ptr = mem;
+//	unsigned int state = __atomic_lock(mem);
+//	volatile bool result = *ptr;
+//	*ptr = true;
+//	__atomic_unlock(mem, state);
+//	return result;
+//}
+//
+//__fast_section __optimize void __atomic_clear_m0(volatile void *mem, int model)
+//{
+//	volatile bool *ptr = mem;
+//	*ptr = false;
+//	__DMB();
+//}
 
 void __atomic_init(void)
 {

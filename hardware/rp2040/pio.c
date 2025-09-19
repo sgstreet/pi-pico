@@ -1,5 +1,5 @@
 /*
- * hal-rp2040-pio.c
+ * rp2040-pio.c
  *
  *  Created on: Jan 4, 2023
  *      Author: Stephen Street (stephen@redrocketcomputing.com)
@@ -7,7 +7,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-
 #include <compiler.h>
 
 #include <sys/irq.h>
@@ -225,6 +224,26 @@ bool pio_machine_is_enabled(uint32_t machine)
 	return (pio->CTRL & (1UL << (machine >> 1))) != 0;
 }
 
+void pio_join_rx_fifo(uint32_t machine)
+{
+	assert(machine < PIO_NUM_MACHINES);
+	clear_bit(&pio_get_machine(machine)->shiftctrl, PIO0_SM0_SHIFTCTRL_FJOIN_TX_Pos);
+	set_bit(&pio_get_machine(machine)->shiftctrl, PIO0_SM0_SHIFTCTRL_FJOIN_RX_Pos);
+}
+
+void pio_join_tx_fifo(uint32_t machine)
+{
+	assert(machine < PIO_NUM_MACHINES);
+	clear_bit(&pio_get_machine(machine)->shiftctrl, PIO0_SM0_SHIFTCTRL_FJOIN_RX_Pos);
+	set_bit(&pio_get_machine(machine)->shiftctrl, PIO0_SM0_SHIFTCTRL_FJOIN_TX_Pos);
+}
+
+void pio_break_fifo(uint32_t machine)
+{
+	assert(machine < PIO_NUM_MACHINES);
+	clear_mask(&pio_get_machine(machine)->shiftctrl, PIO0_SM0_SHIFTCTRL_FJOIN_RX_Pos | PIO0_SM0_SHIFTCTRL_FJOIN_TX_Pos);
+}
+
 volatile uint32_t *pio_get_rx_fifo(uint32_t machine)
 {
 	assert(machine < PIO_NUM_MACHINES);
@@ -239,7 +258,7 @@ volatile uint32_t *pio_get_tx_fifo(uint32_t machine)
 
 void pio_load_program(uint32_t machine, const uint16_t *program, size_t size, uint16_t origin)
 {
-	assert(machine < PIO_NUM_MACHINES && program != 0 && size + origin < 32);
+	assert(machine < PIO_NUM_MACHINES && program != 0 && size <= 32 && (size - 1) + origin < 32);
 
 	PIO0_Type *pio = machine_to_pio(machine);
 	volatile uint32_t *mem = &pio->INSTR_MEM0 + origin;
@@ -323,4 +342,4 @@ static void pio_init(void)
 	irq_enable(PIO1_IRQ_0_IRQn);
 	irq_enable(PIO1_IRQ_1_IRQn);
 }
-PREINIT_PLATFORM_WITH_PRIORITY(pio_init, HAL_PLATFORM_INIT_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(pio_init, HARDWARE_PLATFORM_INIT_PRIORITY);

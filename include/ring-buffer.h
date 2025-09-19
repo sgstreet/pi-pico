@@ -23,7 +23,7 @@ struct ring_buffer
 {
 	unsigned int head;
 	unsigned int tail;
-	unsigned int size;
+	size_t size;
 	char *data;
 	bool allocated;
 	bool release_buffer;

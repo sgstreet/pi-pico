@@ -17,7 +17,7 @@ CPPFLAGS := -I${PROJECT_ROOT}/include -D_GNU_SOURCE
 ARFLAGS := cr
 ASFLAGS := ${CROSS_FLAGS} 
 
-CFLAGS := ${CROSS_FLAGS} -pipe -fno-omit-frame-pointer -feliminate-unused-debug-types -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall -Wunused -Wuninitialized -Wmissing-declarations -Werror -std=gnu11 -funwind-tables -mpoke-function-name
+CFLAGS := ${CROSS_FLAGS} -pipe -fno-omit-frame-pointer -feliminate-unused-debug-types -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-parameter -Wunused -Wuninitialized -Wmissing-declarations -Werror -std=gnu11 -funwind-tables -mpoke-function-name
 CXXFLAGS := ${CROSS_FLAGS} -pipe -fno-omit-frame-pointer -feliminate-unused-debug-types -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall -Wunused -Wuninitialized -Wmissing-declarations -Werror -std=gnu++21 -mpoke-function-name
 
 LDSCRIPTS ?= -L${PROJECT_ROOT}/ldscripts -T memory.ld -T regions-flash.ld -T sections.ld

@@ -111,13 +111,13 @@ static int unwind_control_block_init(unwind_control_block_t *ucb, const uint32_t
 
 static int unwind_execute_instruction(unwind_control_block_t *ucb)
 {
-	int instruction;
+	uint32_t instruction;
 	uint32_t mask;
 	uint32_t reg;
 	uint32_t *vsp;
 
 	/* Consume all instruction byte */
-	while ((instruction = unwind_get_next_byte(ucb)) != -1) {
+	while ((instruction = unwind_get_next_byte(ucb)) != UINT32_MAX) {
 
 		if ((instruction & 0xc0) == 0x00) {
 			/* vsp = vsp + (xxxxxx << 2) + 4 */
@@ -227,7 +227,7 @@ static int unwind_execute_instruction(unwind_control_block_t *ucb)
 			return -1;
 	}
 
-	return instruction != -1;
+	return instruction != UINT32_MAX;
 }
 
 static inline __attribute__((always_inline)) uint32_t *read_psp(void)

@@ -55,6 +55,10 @@ void pio_machine_enable(uint32_t machine);
 void pio_machine_disable(uint32_t machine);
 bool pio_machine_is_enabled(uint32_t machine);
 
+void pio_join_rx_fifo(uint32_t machine);
+void pio_join_tx_fifo(uint32_t machine);
+void pio_break_fifo(uint32_t machine);
+
 volatile uint32_t *pio_get_rx_fifo(uint32_t machine);
 volatile uint32_t *pio_get_tx_fifo(uint32_t machine);
 

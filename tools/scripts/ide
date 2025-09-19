@@ -10,4 +10,4 @@ AUTHOR="$(git config --get user.name) ($(git config --get user.email))"
 
 exec &> /dev/null
 
-$HOME/local/libexec/eclipse/eclipse $workspace -vmargs -Duser.name="$AUTHOR" -Xmx2048M 2>&1 > /dev/null&
+eclipse $workspace -vmargs -Duser.name="$AUTHOR" -Xmx2048M 2>&1 > /dev/null&

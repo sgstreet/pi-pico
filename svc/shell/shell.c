@@ -33,7 +33,7 @@ struct shell
 	atomic_bool run;
 	microrl_t microrl;
 	char *completions[1];
-	int num_commands;
+	size_t num_commands;
 	const struct shell_command *commands[];
 };
 

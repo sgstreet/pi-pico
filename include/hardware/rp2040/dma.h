@@ -8,29 +8,12 @@
 #ifndef _DMA_H_
 #define _DMA_H_
 
+#include <cmsis/cmsis.h>
+
+
 #define DMA_NUM_CHANNELS 12UL
 
 typedef void (*dma_channel_handler_t)(uint32_t channel, void *context);
-
-//struct dma_channel
-//{
-//	__IOM uint32_t read_addr;
-//	__IOM uint32_t write_addr;
-//	__IOM uint32_t trans_count;
-//	__IOM uint32_t ctrl_trig;
-//	__IOM uint32_t alt1_ctrl;
-//	__IOM uint32_t alt1_read_addr;
-//	__IOM uint32_t alt1_write_addr;
-//	__IOM uint32_t alt1_trans_count_trig;
-//	__IOM uint32_t alt2_ctrl;
-//	__IOM uint32_t alt2_trans_count;
-//	__IOM uint32_t alt2_read_addr;
-//	__IOM uint32_t alt2_write_addr_trig;
-//	__IOM uint32_t alt3_ctrl;
-//	__IOM uint32_t alt3_write_addr;
-//	__IOM uint32_t alt3_trans_count;
-//	__IOM uint32_t alt3_read_addr_trig;
-//};
 
 enum dma_dreq
 {

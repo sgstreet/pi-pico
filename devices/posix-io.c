@@ -175,7 +175,7 @@ void posix_unregister(const char *device_name)
 	__retarget_lock_acquire_recursive(&__lock___libc_recursive_mutex);
 
 	/* Look for matching name */
-	int entry;
+	size_t entry;
 	for (entry = 0; entry < used_slots; ++entry)
 		if (strcmp(device_name, devices[entry].name) == 0)
 			break;

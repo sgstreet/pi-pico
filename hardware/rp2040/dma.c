@@ -7,13 +7,11 @@
 
 #include <assert.h>
 #include <stdlib.h>
-
 #include <compiler.h>
 
 #include <sys/irq.h>
 
 #include <init/init-sections.h>
-
 #include <hardware/rp2040/dma.h>
 
 // TODO Build macro expansions for channel alt register addresses
@@ -321,4 +319,4 @@ static void dma_init(void)
 	irq_enable(DMA_IRQ_0_IRQn);
 	irq_enable(DMA_IRQ_1_IRQn);
 }
-PREINIT_PLATFORM_WITH_PRIORITY(dma_init, HAL_PLATFORM_INIT_PRIORITY);
+PREINIT_PLATFORM_WITH_PRIORITY(dma_init, HARDWARE_PLATFORM_INIT_PRIORITY);

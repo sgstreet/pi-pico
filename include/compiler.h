@@ -3,9 +3,10 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <sys/cdefs.h>
 #include <stddef.h>
 #include <container-of.h>
+
+#include <sys/cdefs.h>
 
 #ifdef __cplusplus
 #define __extern extern "C"
