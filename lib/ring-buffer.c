@@ -158,7 +158,7 @@ void ring_buffer_put(struct ring_buffer *ring_buffer, int value)
 
 int ring_buffer_mput(struct ring_buffer *ring_buffer, const void *buffer, size_t size)
 {
-	int amount = 0;
+	size_t amount = 0;
 	const char *data = buffer;
 
 	assert(ring_buffer != 0 && data != 0);
@@ -182,7 +182,7 @@ int ring_buffer_get(struct ring_buffer *ring_buffer)
 
 int ring_buffer_mget(struct ring_buffer *ring_buffer, void *buffer, size_t size)
 {
-	int amount = 0;
+	size_t amount = 0;
 	char *data = buffer;
 
 	assert(ring_buffer != 0);
@@ -200,14 +200,16 @@ int ring_buffer_mget(struct ring_buffer *ring_buffer, void *buffer, size_t size)
 
 int ring_buffer_peek(struct ring_buffer *ring_buffer, int position, int *value)
 {
+	unsigned int current = position;
+
 	assert(ring_buffer != 0);
 
-	/* If no current position, then initial */
+	/* If no current position, then initialize */
 	if (position < 0)
-		position = ring_buffer->tail;
+		current = ring_buffer->tail;
 
 	/* Return -1 of we are a the tail */
-	if (position == ring_buffer->head)
+	if (current == ring_buffer->head)
 		return -1;
 
 	/* Extract the peek data from current position */
@@ -219,21 +221,22 @@ int ring_buffer_peek(struct ring_buffer *ring_buffer, int position, int *value)
 
 int ring_buffer_mpeek(struct ring_buffer *ring_buffer, int position, void *buffer, size_t size)
 {
-	int amount = 0;
+	size_t amount = 0;
 	char *data = buffer;
+	unsigned int current = position;
 
 	assert(ring_buffer != 0);
 
 	/* If no current position, then initialize */
 	if (position < 0)
-		position = ring_buffer->tail;
+		current = ring_buffer->tail;
 
 	/* Return -1 of we are at the end */
-	if (position == ring_buffer->head)
+	if (current == ring_buffer->head)
 		return -1;
 
 	/* Extract the peek data from current position */
-	while (amount < size && ring_buffer->head != position) {
+	while (amount < size && ring_buffer->head != current) {
 		if (data)
 			data[amount] = ring_buffer->data[position];
 		++amount;

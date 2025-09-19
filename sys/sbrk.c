@@ -15,7 +15,7 @@
 extern uintptr_t __heap_start;
 extern uintptr_t __heap_end;
 
-static atomic_uintptr_t brk = (uintptr_t)&__heap_start;
+static atomic_uintptr_t brk_ptr = (uintptr_t)&__heap_start;
 
 void *sbrk(intptr_t incr)
 {
@@ -28,11 +28,11 @@ void *sbrk(intptr_t incr)
 	__LIBC_LOCK();
 
 	/* Adjust break and range check */
-	block = brk;
-	brk += incr;
-	if (brk < (uintptr_t)&__heap_start || brk > (uintptr_t)&__heap_end) {
+	block = brk_ptr;
+	brk_ptr += incr;
+	if (brk_ptr < (uintptr_t)&__heap_start || brk_ptr > (uintptr_t)&__heap_end) {
 		errno = ENOMEM;
-		brk = block;
+		brk_ptr = block;
 		block = -1;
 	}
 

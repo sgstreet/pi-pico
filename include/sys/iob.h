@@ -3,6 +3,7 @@
 
 #include <compiler.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #define __SPLATFORM 0x80
 

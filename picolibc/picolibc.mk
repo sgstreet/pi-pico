@@ -16,7 +16,7 @@ include ${PROJECT_ROOT}/tools/makefiles/target.mk
 else
 
 GIT_REPOSITORY := https://github.com/picolibc/picolibc.git
-GIT_TAG := 1.8.6
+GIT_TAG := 1.8.9-2
 
 ${CURDIR}/README.md:
 	@echo "CLONING ${GIT_REPOSITORY}@${GIT_TAG}"
